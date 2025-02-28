@@ -1,0 +1,1492 @@
+openapi: 3.0.1
+info:
+  version: 22.7.201-a104ccbac3
+  title: Role Management
+  termsOfService: 'https://www.idaptive.com/eula/'
+servers:
+  - url: 'https://{tenant_url}/'
+    variables:
+      tenant_url:
+        default: example.id.cyberark.cloud
+paths:
+  /Roles/StoreRole:
+    post:
+      tags:
+        - Role Management
+      summary: Create Role
+      description: |-
+        <p><ul><li>This API is invoked when you want to create the name of the role, add a description, or assign users to the role.</li>
+                    <li>Only system administrators and users with role management rights can invoke this API.</li>
+                    <li>For more details Please refer <a href="https://identity-developer.cyberark.com/docs/manage-rolesnew#creating-a-role">Create a Role</a></li></ul></p>
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                Name:
+                  type: string
+                  description: 'The role name. For example, "samplerole".'
+                Description:
+                  type: string
+                  description: A brief description about the role.
+                Users:
+                  type: array
+                  description: 'A list of unique IDs or names of the user to be added to the role. For example, 3cc....b1.'
+                  items:
+                    type: object
+                Roles:
+                  type: array
+                  description: 'A list of unique IDs or names of the roles to be added to the role. For example, 3cc....b1.'
+                  items:
+                    type: object
+                Groups:
+                  type: array
+                  description: 'A list of unique IDs or names of the groups to be added to the role. For example, 3cc....b1.'
+                  items:
+                    type: object
+                RoleType:
+                  type: string
+                  description: 'Type of the Role Cyberark identity supports the following role types:<br> PrincipalList: Create a role of static type<br> Script: Create a role of dynamic type<br> Everybody: Create a role of type that matches all the authenticated users'
+                OrgPath:
+                  type: string
+                  description: Organization Name
+              required:
+                - Name
+      responses:
+        '200':
+          description: API-Result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RolesStoreRole'
+              examples:
+                Successful Role Creation:
+                  summary: The role has been successfully created.
+                  value:
+                    success: true
+                    Result:
+                      _RowKey: 65911ae4_abba_4063_b237_5a37a33bca6c
+                    Message: null
+                    MessageID: null
+                    Exception: null
+                    ErrorID: null
+                    ErrorCode: null
+                    IsSoftError: false
+                    InnerExceptions: null
+                Successful Role Creation with Users:
+                  summary: 'The role, along with the assigned users, has been successfully created.'
+                  value:
+                    success: true
+                    Result:
+                      _RowKey: d748e17d_2427_4f51_a566_928fed11baa0
+                    Message: null
+                    MessageID: null
+                    Exception: null
+                    ErrorID: null
+                    ErrorCode: null
+                    IsSoftError: false
+                    InnerExceptions: null
+                Required Parameter Missing:
+                  summary: A required parameter is missing.
+                  value:
+                    success: false
+                    Result: null
+                    Message: Parameter "Name" must be specified.
+                    MessageID: The message ID is a unique identifier for the failure response.
+                    Exception: There is no additional diagnostic information available
+                    ErrorID: 'The error ID is a unique identifier for a particular error scenario, enabling users to trace the problem back to the source.'
+                    ErrorCode: null
+                    IsSoftError: false
+                    InnerExceptions: null
+                Unique RoleName:
+                  summary: Role Already Exists
+                  value:
+                    success: false
+                    Result: null
+                    Message: Role with name testrole already exists.
+                    MessageID: The message ID is a unique identifier for the failure response.
+                    Exception: There is no additional diagnostic information available.
+                    ErrorID: 'The error ID is a unique identifier for a particular error scenario, enabling users to trace the problem back to the source.'
+                    ErrorCode: '1409'
+                    IsSoftError: false
+                    InnerExceptions: null
+        '401':
+          description: Unauthorized access to the API
+          content:
+            text/html:
+              examples:
+                UnauthourizedError:
+                  summary: Unauthorized access
+                  value: You do not have access to this content. Please contact your system administrator for assistance. Note- The response is an HTML response .
+      security:
+        - bearerAuth: []
+      servers:
+        - url: 'https://{tenant_url}/'
+          variables:
+            tenant_url:
+              default: example.id.cyberark.cloud
+      x-idap-anon: false
+      x-codegen-request-body-name: payload
+  /Roles/UpdateRole:
+    post:
+      tags:
+        - Role Management
+      summary: Update role
+      description: |-
+        <p><ul><li>Invoke this API, users or roles can be added or removed from the existing role.</li>
+                    <li>Only the system administrator, users with role management rights can invoke this API.</li>
+                    <li>For more details Please refer<a href="https://identity-developer.cyberark.com/docs/manage-rolesnew#updating-a-role"> Update a Role</a></li></ul></p>
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                Roles:
+                  type: object
+                  description: Specify Rolenames or Role Unique Id for the members to add or delete for the role
+                  properties:
+                    Delete:
+                      type: array
+                      description: 'Array of role''s Unique Id Ex: 2bbe197f-ed05-496d-8e7a-1b918adebe38'
+                      items:
+                        type: string
+                        description: role's UUID
+                    Add:
+                      type: array
+                      description: 'Array of role''s Unique Id. Ex: 2bbe197f-ed05-496d-8e7a-1b918adebe38'
+                      items:
+                        type: string
+                        description: role's UUID
+                Users:
+                  type: object
+                  description: Specify Usernames or User Unique Id for the members to add or delete for the role
+                  properties:
+                    Delete:
+                      type: array
+                      description: 'Array of user''s Unique Id. Ex: 2bbe197f-ed05-496d-8e7a-1b918adebe38'
+                      items:
+                        type: string
+                        description: user's UUID
+                    Add:
+                      type: array
+                      description: 'Array of user''s Unique Id. Ex: 2bbe197f-ed05-496d-8e7a-1b918adebe38'
+                      items:
+                        type: string
+                        description: user's UUID
+                Groups:
+                  type: object
+                  description: Specify Groupnames or Group Unique Id for the members to add or delete for the role
+                  properties:
+                    Delete:
+                      type: array
+                      description: 'Array of group''s Unique Id Ex: c2c1698f_08f3_4c69_8774_6233c1996578'
+                      items:
+                        type: string
+                        description: group's UUID
+                    Add:
+                      type: array
+                      description: 'Array of group''s Unique Id. Ex: c2c1698f_08f3_4c69_8774_6233c1996578'
+                      items:
+                        type: string
+                        description: group's UUID
+                Name:
+                  type: string
+                  description: 'The unique ID of the Role. The unique ID is generated when the user is created. Ex: 79d63967_9b6d_467b_9fc8_d5db6ce32012'
+              required:
+                - Users
+                - Name
+      responses:
+        '200':
+          description: API-Result
+          content:
+            application/json:
+              examples:
+                Updaterole:
+                  summary: The role has been successfully updated.
+                  value:
+                    success: true
+                    Result: null
+                    Message: null
+                    MessageID: null
+                    Exception: null
+                    ErrorID: null
+                    ErrorCode: null
+                    IsSoftError: false
+                    InnerExceptions: null
+                InvalidRoleID:
+                  summary: The role ID is invalid.
+                  value:
+                    success: false
+                    Result: null
+                    Message: The role "role ID" does not exist.
+                    MessageID: null
+                    Exception: null
+                    ErrorID: 'The error ID is a unique identifier for a particular error scenario, enabling users to trace the problem back to the source.'
+                    ErrorCode: null
+                    IsSoftError: false
+                    InnerExceptions: null
+                InvalidRequestBody:
+                  summary: Invalid request body.
+                  value:
+                    success: false
+                    Result: null
+                    Message: 'Unexpected character encountered while parsing value: "Position details are displayed".'
+                    MessageID: The message ID is a unique identifier for the failure response.
+                    Exception: There is no additional diagnostic information available.
+                    ErrorID: 'The error ID is a unique identifier for a particular error scenario, enabling users to trace the problem back to the source.'
+                    ErrorCode: null
+                    IsSoftError: false
+                    InnerExceptions: null
+                InvalidSequence:
+                  summary: Bad JSON sequence.
+                  value:
+                    success: false
+                    Result: null
+                    Message: 'Bad JSON escape sequence: "Position details are displayed" '
+                    MessageID: The message ID is a unique identifier for the failure response.
+                    Exception: There is no additional diagnostic information available.
+                    ErrorID: 'The error ID is a unique identifier for a particular error scenario, enabling users to trace the problem back to the source.'
+                    ErrorCode: null
+                    IsSoftError: false
+                    InnerExceptions: null
+                delimiterError:
+                  summary: Expected delimiter.
+                  value:
+                    success: false
+                    Result: null
+                    Message: 'Unterminated string. Expected delimiter: "Position of expected delimiter is given".'
+                    MessageID: The message ID is a unique identifier for the failure response.
+                    Exception: There is no additional diagnostic information available.
+                    ErrorID: 'The error ID is a unique identifier for a particular error scenario, enabling users to trace the problem back to the source.'
+                    ErrorCode: null
+                    IsSoftError: false
+                    InnerExceptions: null
+        '401':
+          description: Unauthorized access to the API
+          content:
+            text/html:
+              examples:
+                UnauthourizedError:
+                  summary: Unauthorized Access
+                  value: You do not have access to this content. Please contact your system administrator for assistance. Note- The response is an HTML response .
+      security:
+        - bearerAuth: []
+      servers:
+        - url: 'https://{tenant_url}/'
+          variables:
+            tenant_url:
+              default: example.id.cyberark.cloud
+      x-idap-anon: false
+      x-codegen-request-body-name: payload
+  /SaasManage/AddUsersAndGroupsToRole:
+    post:
+      tags:
+        - Role Management
+      summary: Add users or roles or groups to role
+      description: |-
+        <p><ul><li>Invoke this API, users or roles can be added to an existing role.</li>
+                     <li>Only the system administrators, users with role management rights can invoke this API.</li>
+                     <li>We need to specify Role's or User's Unique Id to add for the role</li></p>
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                Roles:
+                  type: array
+                  description: 'The unique ID of the Role or Role Names to add for the role Ex: 3d6093ff_0217_4e50_8353_82c5ac732363'
+                  items:
+                    type: object
+                Users:
+                  type: array
+                  description: 'List of unique ID of the User or User Names to add for the role Ex: ea5e3538-71ac-4b41-a0b7-c5b4a5b23f05'
+                  items:
+                    type: object
+                Groups:
+                  type: array
+                  description: 'The unique ID of the Group or Group Names to add for the role Ex: c2c1698f_08f3_4c69_8774_6233c1996578'
+                  items:
+                    type: object
+                Name:
+                  type: string
+                  description: 'The unique ID of the Role. The unique ID is generated when the Role is created. Ex: 612e41e0-0d6c-46d3-ad55-c3a28afa26yh'
+              required:
+                - Name
+      responses:
+        '200':
+          description: API-Result
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/SaasManageAddUsersAndGroupsToRole'
+      security:
+        - bearerAuth: []
+      servers:
+        - url: 'https://{tenant_url}/'
+          variables:
+            tenant_url:
+              default: example.id.cyberark.cloud
+      x-idap-anon: false
+      x-codegen-request-body-name: payload
+  /Roles/AssignSuperRights:
+    post:
+      tags:
+        - Role Management
+      summary: Assign administrative rights to role
+      description: |-
+        <p><ul><li>Invoke this API that will assign the administrative rights to users through roles.</li>
+                    <li>Only the system administrator, users with role management rights can invoke this API.</li>
+                    <li>Individual rights are defined in JSON-formatted library files.</li>
+                    <li>For this API call, You can specify role Unique Id and path to the file that will assign the permission of rights.</li>
+                    <li>For more details Please refer <a href="https://identity-developer.cyberark.com/docs/manage-rolesnew">Assign rights</a></li></ul></p>
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                Role:
+                  type: string
+                  description: 'The unique ID of the Role. The unique ID is generated when the role is created. Ex: 612e41e0-0d6c-46d3-ad55-c3a28afa26yh'
+                Path:
+                  type: string
+                  description: 'Path of the file that defines the library file that will assign a specific right. Ex: /lib/rights/reportman.json'
+              required:
+                - Role
+                - Path
+      responses:
+        '200':
+          description: API-Result
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/RolesAssignSuperRights'
+      security:
+        - bearerAuth: []
+      servers:
+        - url: 'https://{tenant_url}/'
+          variables:
+            tenant_url:
+              default: example.id.cyberark.cloud
+      x-idap-anon: false
+      x-codegen-request-body-name: payload
+  /Roles/UnAssignSuperRights:
+    post:
+      tags:
+        - Role Management
+      summary: Unassign administrative rights for role
+      description: |-
+        <p><ul><li>Invoke this API that will unassign the administrative rights to users through roles.</li>
+                     <li>Only the system administrator, users with role management rights can invoke this API.</li>
+                     <li>Individual rights are defined in JSON-formatted library files.</li>
+                     <li>For this API call, You can specify role Unique Id and path to the file that will unassign the permission of rights.</li></p>
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                Role:
+                  type: string
+                  description: 'The unique ID of the Role. The unique ID is generated when the Role is created. Ex: 612e41e0-0d6c-46d3-ad55-c3a28afa26yh'
+                Path:
+                  type: string
+                  description: 'Path of the file that defines the library file that will unassign a specific right. Ex: /lib/rights/reportman.json'
+              required:
+                - Role
+                - Path
+      responses:
+        '200':
+          description: API-Result
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/RolesUnAssignSuperRights'
+      security:
+        - bearerAuth: []
+      servers:
+        - url: 'https://{tenant_url}/'
+          variables:
+            tenant_url:
+              default: example.id.cyberark.cloud
+      x-idap-anon: false
+      x-codegen-request-body-name: payload
+  /SaasManage/DeleteRoles:
+    post:
+      tags:
+        - Role Management
+      summary: Delete Roles
+      description: |-
+        <p><ul><li>Invoke this API to delete a list of roles.</li>
+                     <li>Only the system administrator, users with role management rights can invoke this API.</li>
+                     <li>For this API call, You can specify the Unique Id's of the Roles to delete the list of roles.</li></p>
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                Roles:
+                  type: array
+                  description: 'Pass list of Unique Id''s of the Roles Ex: 612e41e0-0d6c-46d3-ad55-c3a28afa26yh'
+                  items:
+                    type: object
+              required:
+                - Roles
+      responses:
+        '200':
+          description: API-Result
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/SaasManageDeleteRoles'
+      security:
+        - bearerAuth: []
+      servers:
+        - url: 'https://{tenant_url}/'
+          variables:
+            tenant_url:
+              default: example.id.cyberark.cloud
+      x-idap-anon: false
+      x-codegen-request-body-name: payload
+  /Core/GetAssignedAdministrativeRights:
+    post:
+      tags:
+        - Role Management
+      summary: Get assigned administrative rights associated of role
+      description: |-
+        <p><ul><li>Invoke this API to get a list of administrative rights for a given role.</li>
+                     <li>Only the system administrator, users with role management rights can invoke this API.</li>
+                     <li>You can specify role Unique Id to get the administrative rights for a role.</li></p>
+      parameters:
+        - name: role
+          in: query
+          description: 'Unique ID of the Role Ex: 4b103f3c_4824_48f8_ab94_0c353203d5b7'
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: API-Result
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/CoreGetAssignedAdministrativeRights'
+      security:
+        - bearerAuth: []
+      servers:
+        - url: 'https://{tenant_url}/'
+          variables:
+            tenant_url:
+              default: example.id.cyberark.cloud
+      x-idap-anon: false
+  /Roles/GetRole:
+    post:
+      tags:
+        - Role Management
+      summary: Get role
+      description: You must be a system administrator or have role management permissions.
+      parameters:
+        - name: Name
+          in: query
+          description: Role UUID
+          required: true
+          schema:
+            type: string
+        - name: SuppressPrincipalsList
+          in: query
+          description: 'If true, the principals list will not be included (may make this call much faster)'
+          schema:
+            type: string
+        - name: getRights
+          in: query
+          description: 'If true, the get effective right for current user'
+          schema:
+            type: string
+      responses:
+        '200':
+          description: API-Result
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/RolesGetRole'
+      security:
+        - bearerAuth: []
+      servers:
+        - url: 'https://{tenant_url}/'
+          variables:
+            tenant_url:
+              default: example.id.cyberark.cloud
+      x-idap-anon: false
+  /Roles/GetRoleMembers:
+    post:
+      tags:
+        - Role Management
+      summary: Get role members
+      description: |-
+        <p><ul><li>Invoke this API that will get Role Members associated with a role.</li>
+                     <li>Only the system administrator, users with role management rights can invoke this API.</li>
+                     <li>For this API call, You can specify Unique Id of the role to get the Role Members.</li></p>
+      parameters:
+        - name: name
+          in: query
+          description: 'Pass Unique Id of the Role Ex: 612e41e0-0d6c-46d3-ad55-c3a28afa26yh'
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: API-Result
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/RolesGetRoleMembers'
+      security:
+        - bearerAuth: []
+      servers:
+        - url: 'https://{tenant_url}/'
+          variables:
+            tenant_url:
+              default: example.id.cyberark.cloud
+      x-idap-anon: false
+  /Roles/SetDynamicRoleScript:
+    post:
+      tags:
+        - Role Management
+      summary: Set script of dynamic role
+      description: Script evaluates whether the user should be authorized to access the rights and apps managed by the role.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                ID:
+                  type: string
+                  description: ID of the role to create or update
+                Script:
+                  type: string
+                  description: Javascript which returns a boolean value
+              required:
+                - ID
+                - Script
+      responses:
+        '200':
+          description: API-Result
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/RolesSetDynamicRoleScript'
+      security:
+        - bearerAuth: []
+      servers:
+        - url: 'https://{tenant_url}/'
+          variables:
+            tenant_url:
+              default: example.id.cyberark.cloud
+      x-idap-anon: false
+      x-codegen-request-body-name: payload
+  /Roles/TestDynamicRoleScript:
+    post:
+      tags:
+        - Role Management
+      summary: Test dynamic role script
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                User:
+                  type: string
+                  description: ID of the user object for testing the script
+                Script:
+                  type: string
+                  description: Script to test
+              required:
+                - User
+                - Script
+      responses:
+        '200':
+          description: API-Result
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/RolesTestDynamicRoleScript'
+      security:
+        - bearerAuth: []
+      servers:
+        - url: 'https://{tenant_url}/'
+          variables:
+            tenant_url:
+              default: example.id.cyberark.cloud
+      x-idap-anon: false
+      x-codegen-request-body-name: payload
+  /SaasManage/GetRoleApps:
+    post:
+      tags:
+        - Role Management
+      summary: Get apps associated with role
+      description: |-
+        <p><ul><li>Invoke this API that will get information of  Web Applications associated with a role.</li>
+                     <li>Only the system administrator, users with role management rights can invoke this API.</li>
+                     <li>For this API call, You can specify names or unique Id of the role to get the Web Applications for the Role.</li></p>
+      parameters:
+        - name: role
+          in: query
+          description: 'Pass Unique ID or name of the Role Ex: 79d63967_9b6d_467b_9fc8_d5db6ce32099'
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: API-Result
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/SaasManageGetRoleApps'
+      security:
+        - bearerAuth: []
+      servers:
+        - url: 'https://{tenant_url}/'
+          variables:
+            tenant_url:
+              default: example.id.cyberark.cloud
+      x-idap-anon: false
+  /SaasManage/RemoveUsersAndGroupsFromRole:
+    post:
+      tags:
+        - Role Management
+      summary: Remove users or roles or groups from the role
+      description: |-
+        <p><ul><li>Invoke this API, users or roles can be removed from the existing role.</li>
+                     <li>Only the system administrator, users with role management rights can invoke this API.</li>
+                     <li>We need to specify Role's or User's Unique Id to remove from the role</li></p>
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                Roles:
+                  type: array
+                  description: 'List of the unique ID of the Roles or Role Names to remove from the role Ex: 3d6093ff_0217_4e50_8353_82c5ac732363'
+                  items:
+                    type: object
+                Users:
+                  type: array
+                  description: 'List of the unique ID of the Users or User Names to remove from the role Ex: ea5e3538-71ac-4b41-a0b7-c5b4a5b24f05'
+                  items:
+                    type: object
+                Groups:
+                  type: array
+                  description: 'The unique ID of the Group or Group Names to remove from the role Ex: c2c1698f_08f3_4c69_8774_6233c1996578'
+                  items:
+                    type: object
+                Name:
+                  type: string
+                  description: 'The unique ID of the Role. The unique ID is generated when the Role is created. Ex: 612e41e0-0d6c-46d3-ad55-c3a28afa26yh'
+              required:
+                - Name
+      responses:
+        '200':
+          description: API-Result
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/SaasManageRemoveUsersAndGroupsFromRole'
+      security:
+        - bearerAuth: []
+      servers:
+        - url: 'https://{tenant_url}/'
+          variables:
+            tenant_url:
+              default: example.id.cyberark.cloud
+      x-idap-anon: false
+      x-codegen-request-body-name: payload
+tags:
+  - name: Role Management
+    description: Manage roles and admin rights
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    RolesStoreRole:
+      type: object
+      description: Return object for an API call.
+      properties:
+        success:
+          type: boolean
+          description: It will be true for a successful API call.
+        Result:
+          type: object
+          description: The result for the API call.
+          properties:
+            Rowkey:
+              type: string
+              description: Unique Id of the Role
+        Message:
+          type: string
+          description: Error message for failure response. By default it is 'null'.
+        MessageID:
+          type: string
+          description: Message Id for failure response. By default it is 'null'.
+        Exception:
+          type: string
+          description: Exception message if any exception is received from the API. By default it is 'null'.
+        ErrorID:
+          type: string
+          description: Error ID if any error is received from the API. By default it is 'null'.
+        ErrorCode:
+          type: string
+          description: Error code if any error is received from the API. By default it is 'null'.
+        IsSoftError:
+          type: boolean
+          description: SoftError.
+        InnerExceptions:
+          type: string
+          description: Inner Exceptions if any received from the API. By default it is 'null'.
+    SaasManageAddUsersAndGroupsToRole:
+      type: object
+      properties:
+        Result:
+          type: object
+          description: Return object for a successful API call.
+          properties:
+            ErrorCode:
+              type: string
+              description: Error code if any error is received from the API. By default it is 'null'
+            Exception:
+              type: string
+              description: Exception message if any exception is received from the API. By default it is 'null'
+            MessageID:
+              type: string
+              description: Message Id for failure response. By default it is 'null'
+            Result:
+              type: string
+              description: The result will be null.
+            InnerExceptions:
+              type: string
+              description: Inner Exceptions if any received from the API. By default it is 'null'
+            Message:
+              type: string
+              description: Error message for failure response. By default it is 'null'
+            ErrorId:
+              type: string
+              description: Error ID if any error is received from the API. By default it is 'null'
+            success:
+              type: boolean
+              description: The success will be true or false.
+            IsSoftError:
+              type: boolean
+              description: SoftError if true indicates this is not actually an exception but an UI warning popup.
+        Error:
+          type: object
+          description: Error message text on failure. Below message would be returned if requested data is invalid.
+          properties:
+            Invalid_InputData:
+              type: string
+              description: 'This error message is displayed when the given role is not valid. Error message:''The requested data or its dependent data was not found in the service.'''
+    RolesAssignSuperRights:
+      type: object
+      properties:
+        Result:
+          type: object
+          description: Return object for a successful API call.
+          properties:
+            ErrorCode:
+              type: string
+              description: Error code if any error is received from the API. By default it is 'null'
+            Exception:
+              type: string
+              description: Exception message if any exception is received from the API. By default it is 'null'
+            MessageID:
+              type: string
+              description: Message Id for failure response. By default it is 'null'
+            Result:
+              type: string
+              description: The result will be null.
+            InnerExceptions:
+              type: string
+              description: Inner Exceptions if any received from the API. By default it is 'null'
+            Message:
+              type: string
+              description: Error message for failure response. By default it is 'null'
+            ErrorId:
+              type: string
+              description: Error ID if any error is received from the API. By default it is 'null'
+            success:
+              type: boolean
+              description: The success will be true or false.
+            IsSoftError:
+              type: boolean
+              description: SoftError if true indicates this is not actually an exception but an UI warning popup.
+        Error:
+          type: object
+          description: Error message text on failure.
+          properties:
+            Invalid_InputData:
+              type: string
+              description: 'This error message is displayed when the requested data is not correct. Error message:''The requested data or its dependent data was not found in the service.'''
+            Invalid_Path:
+              type: string
+              description: 'This error message is displayed when the given path is not valid. Error message:''Specified path is invalid'''
+    RolesUnAssignSuperRights:
+      type: object
+      properties:
+        Result:
+          type: object
+          description: Return object for a successful API call.
+          properties:
+            ErrorCode:
+              type: string
+              description: Error code if any error is received from the API. By default it is 'null'
+            Exception:
+              type: string
+              description: Exception message if any exception is received from the API. By default it is 'null'
+            MessageID:
+              type: string
+              description: Message Id for failure response. By default it is 'null'
+            Result:
+              type: string
+              description: The result will be null.
+            InnerExceptions:
+              type: string
+              description: Inner Exceptions if any received from the API. By default it is 'null'
+            Message:
+              type: string
+              description: Error message for failure response. By default it is 'null'
+            ErrorId:
+              type: string
+              description: Error ID if any error is received from the API. By default it is 'null'
+            success:
+              type: boolean
+              description: The success will be true or false.
+            IsSoftError:
+              type: boolean
+              description: SoftError if true indicates this is not actually an exception but an UI warning popup.
+        Error:
+          type: object
+          description: Error message text on failure.
+          properties:
+            Invalid_InputData:
+              type: string
+              description: 'This error message is displayed when the requested data is not correct. Error message:''The requested data or its dependent data was not found in the service.'''
+            Invalid_Path:
+              type: string
+              description: 'This error message is displayed when the given path is not valid. Error message:''Specified path is invalid'''
+    SaasManageDeleteRoles:
+      type: object
+      properties:
+        Result:
+          type: object
+          description: Return object for a successful API call.
+          properties:
+            ErrorID:
+              type: string
+              description: Error ID if any error is received from the API. By default it is 'null'
+            ErrorCode:
+              type: string
+              description: Error code if any error is received from the API. By default it is 'null'
+            Exception:
+              type: string
+              description: Exception message if any exception is received from the API. By default it is 'null'
+            MessageID:
+              type: string
+              description: Message Id for failure response. By default it is 'null'
+            Result:
+              type: string
+              description: The result will be 'null'.
+            InnerExceptions:
+              type: string
+              description: Inner Exceptions if any received from the API. By default it is 'null'
+            Message:
+              type: string
+              description: Error message for failure response. By default it is 'null'
+            success:
+              type: boolean
+              description: The success will be true or false.
+            IsSoftError:
+              type: boolean
+              description: SoftError if true indicates this is not actually an exception but an UI warning popup.
+        Error:
+          type: object
+          description: 'Error message text on failure, may be null'
+    CoreGetAssignedAdministrativeRights:
+      type: object
+      properties:
+        Result:
+          type: object
+          description: Return object for a successful API call.
+          properties:
+            success:
+              type: boolean
+              description: The success will be true or false
+            MessageID:
+              type: string
+              description: Message Id for failure response. By default it is 'null'
+            Exception:
+              type: string
+              description: Exception message if any exception is received from the API. By default it is 'null'
+            Result:
+              type: object
+              description: Result of the assigned administrative rights
+              properties:
+                count:
+                  type: integer
+                  description: Total No.of assigned administrative rights
+                columns:
+                  type: array
+                  description: Information about the administrative rights
+                  items:
+                    type: object
+                    properties:
+                      TableKey:
+                        type: string
+                        description: Whether column is a key(primary or foreign).
+                      Description:
+                        type: string
+                        description: Brief description of the column.
+                      Name:
+                        type: string
+                        description: Name of the column.
+                      Format:
+                        type: string
+                        description: Format
+                      TableName:
+                        type: string
+                        description: TableName of the column
+                      DDTitle:
+                        type: string
+                        description: Data dictionary title of the column.
+                      Type:
+                        type: integer
+                        description: Type of data in column
+                      IsHidden:
+                        type: boolean
+                        description: Whether column is hidden.
+                      DDname:
+                        type: string
+                        description: Data dictionary name of the column.
+                      Width:
+                        type: integer
+                        description: Size of the column
+                      Title:
+                        type: string
+                        description: Title of the column.
+                      ForeignKey:
+                        type: string
+                        description: Whether column holds a foreign key.
+                IsAggregrate:
+                  type: string
+                  description: Is Aggregrate
+                Results:
+                  type: array
+                  description: Result of the assigned administrative rights
+                  items:
+                    type: object
+                    description: Result of assigned rights
+                    properties:
+                      Entities:
+                        type: object
+                        description: Entities List
+                      Row:
+                        type: object
+                        description: Description about the administrative member
+                        properties:
+                          Scope:
+                            type: string
+                            description: Scope of the right
+                          ServiceName:
+                            type: string
+                            description: ServiceName of the right
+                          Path:
+                            type: string
+                            description: Specified Path of the right
+                          Description:
+                            type: string
+                            description: Description of the right
+                FullCount:
+                  type: integer
+                  description: Total No.of assigned administrative rights
+            Message:
+              type: string
+              description: Error message for failure response. By default it is 'null'
+            ErrorID:
+              type: string
+              description: Error ID if any error is received from the API. By default it is 'null'
+            InnerExceptions:
+              type: string
+              description: Inner Exceptions if any received from the API. By default it is 'null'
+            ReturnID:
+              type: string
+              description: ReturnID for the successful api call
+            ErrorCode:
+              type: string
+              description: Error code if any error is received from the API. By default it is 'null'
+            IsSoftError:
+              type: boolean
+              description: SoftError if true indicates this is not actually an exception but an UI warning popup
+        Error:
+          type: object
+          description: 'Error message text on failure, may be null'
+    RolesGetRole:
+      type: object
+      properties:
+        Result:
+          type: object
+          description: Role information
+          properties:
+            DirectoryServiceUuid:
+              type: string
+              description: UUID of the Directory Service owning the role
+            Principals:
+              type: array
+              description: 'List of priciapls who are members of the role.  Each principal is of the form t=id, where ''t'' is one of ''u'' (user), ''g'' (group), or ''r'' (role) and ''id'' is the principal name.'
+              items:
+                type: string
+            RoleType:
+              type: string
+              description: 'Role type, one of Everybody or PrincipalList'
+            Uuid:
+              type: string
+              description: Role UUID
+            ReadOnly:
+              type: boolean
+              description: Is role read only?
+            Description:
+              type: string
+              description: Role description
+            Name:
+              type: string
+              description: Role name
+        Error:
+          type: object
+          description: 'Error message text on failure, may be null'
+    RolesGetRoleMembers:
+      type: object
+      properties:
+        Result:
+          type: object
+          description: Return object for a successful API call.
+          properties:
+            ErrorID:
+              type: string
+              description: Error ID if any error is received from the API. By default it is 'null'
+            ErrorCode:
+              type: string
+              description: Error code if any error is received from the API. By default it is 'null'
+            Exception:
+              type: string
+              description: Exception message if any exception is received from the API. By default it is 'null'
+            MessageID:
+              type: string
+              description: Message Id for failure response. By default it is 'null'
+            Result:
+              type: object
+              description: Result
+              properties:
+                ReturnID:
+                  type: string
+                  description: ReturnID for the successful API
+                count:
+                  type: integer
+                  description: Total No. of members associated with role
+                columns:
+                  type: array
+                  description: Information about the columns
+                  items:
+                    type: object
+                    description: columns list
+                    properties:
+                      TableKey:
+                        type: string
+                        description: Whether column is a key(primary or foreign).
+                      Description:
+                        type: string
+                        description: Brief description of the column.
+                      Name:
+                        type: string
+                        description: Name of the column.
+                      Format:
+                        type: string
+                        description: Format.
+                      TableName:
+                        type: string
+                        description: Table Name of the Column.
+                      DDTitle:
+                        type: string
+                        description: Data dictionary title of the column.
+                      Type:
+                        type: integer
+                        description: Type of the data in the column.
+                      IsHidden:
+                        type: boolean
+                        description: Whether column is hidden.
+                      DDname:
+                        type: string
+                        description: Data dictionary name of the column.
+                      Width:
+                        type: integer
+                        description: Size of the column.
+                      Title:
+                        type: string
+                        description: Title of the column
+                      ForeignKey:
+                        type: string
+                        description: Whether column holds a foreign key.
+                IsAggregrate:
+                  type: string
+                  description: Is Aggregrate
+                Results:
+                  type: array
+                  description: Result of the Role Members
+                  items:
+                    type: object
+                    description: Information about the Role Members
+                    properties:
+                      Entities:
+                        type: array
+                        description: Entities List
+                        items:
+                          type: object
+                          description: Information of Role Members
+                          properties:
+                            IsForeignKey:
+                              type: boolean
+                              description: IsForeignKey
+                            type:
+                              type: string
+                              description: Type
+                            Key:
+                              type: string
+                              description: Key
+                      Row:
+                        type: array
+                        description: Row
+                        items:
+                          type: object
+                          description: Description of Role Members
+                          properties:
+                            IsEffective:
+                              type: boolean
+                              description: IsEffective
+                            OrgPath:
+                              type: string
+                              description: Organisation Path of the user
+                            OrgId:
+                              type: string
+                              description: Organisation Id of the user
+                            Guid:
+                              type: string
+                              description: Guid of the user
+                            Type:
+                              type: string
+                              description: Type of the user
+                            Name:
+                              type: string
+                              description: Name of the user(user@domain)
+                FullCount:
+                  type: integer
+                  description: Total No.of role members
+            InnerExceptions:
+              type: string
+              description: Inner Exceptions if any received from the API. By default it is 'null'
+            Message:
+              type: string
+              description: Error message for failure response. By default it is 'null'
+            success:
+              type: boolean
+              description: The success will be true or false
+            IsSoftError:
+              type: boolean
+              description: SoftError if true indicates this is not actually an exception but an UI warning popup.
+        Error:
+          type: object
+          description: Error message text on failure.
+          properties:
+            Invalid_Role:
+              type: string
+              description: 'This error message is displayed when the invalid role is provided . Error message: ''Role does not exist'''
+            Invalid_Data:
+              type: string
+              description: 'This error message is displayed when the requested data is not correct. Error message: ''The requested data or its dependent data was not found in the service.'''
+    RolesSetDynamicRoleScript:
+      type: object
+      properties:
+        Result:
+          type: object
+          description: Return object for a successful API call.
+          properties:
+            ErrorID:
+              type: string
+              description: Error ID if any error is received from the API. By default it is 'null'
+            ErrorCode:
+              type: string
+              description: Error code if any error is received from the API. By default it is 'null'
+            Exception:
+              type: string
+              description: Exception message if any exception is received from the API. By default it is 'null'
+            MessageID:
+              type: string
+              description: Message Id for failure response. By default it is 'null'
+            Result:
+              type: string
+              description: The result will be null.
+            InnerExceptions:
+              type: string
+              description: InnerExceptions
+            Message:
+              type: string
+              description: Error message for failure response. By default it is 'null'
+            success:
+              type: boolean
+              description: The success will be true or false.
+            IsSoftError:
+              type: boolean
+              description: SoftError if true indicates this is not actually an exception but an UI warning popup.
+        Error:
+          type: object
+          description: 'Error message text on failure, may be null'
+    RolesTestDynamicRoleScript:
+      type: object
+      properties:
+        Result:
+          type: object
+          description: Return object for a successful API call.
+          properties:
+            ErrorID:
+              type: string
+              description: Error ID if any error is received from the API. By default it is 'null'
+            ErrorCode:
+              type: string
+              description: Error code if any error is received from the API. By default it is 'null'
+            Exception:
+              type: string
+              description: Exception message if any exception is received from the API. By default it is 'null'
+            MessageID:
+              type: string
+              description: Message Id for failure response. By default it is 'null'
+            Result:
+              type: object
+              description: Result details
+              properties:
+                Trace:
+                  type: array
+                  description: Logs. By default it is an empty list.
+                Errors:
+                  type: string
+                  description: Exception Message. By default it is 'null'.
+                Result:
+                  type: boolean
+                  description: Evaluated Result. By default it is 'null'.
+                CompileSuccess:
+                  type: boolean
+                  description: Whether the execution of the script is successful. By default it is false.
+            InnerExceptions:
+              type: string
+              description: InnerExceptions
+            Message:
+              type: string
+              description: Error message for failure response. By default it is 'null'
+            success:
+              type: boolean
+              description: The success will be true or false.
+            IsSoftError:
+              type: boolean
+              description: SoftError if true indicates this is not actually an exception but an UI warning popup.
+        Error:
+          type: object
+          description: 'Error message text on failure, may be null'
+    SaasManageGetRoleApps:
+      type: object
+      properties:
+        Result:
+          type: object
+          description: Return object for a successful API call.
+          properties:
+            ErrorID:
+              type: string
+              description: Error ID if any error is received from the API. By default it is 'null'
+            ErrorCode:
+              type: string
+              description: Error code if any error is received from the API. By default it is 'null'
+            Exception:
+              type: string
+              description: Exception message if any exception is received from the API. By default it is 'null'
+            MessageID:
+              type: string
+              description: Message Id for failure response. By default it is 'null'
+            Result:
+              type: object
+              description: Result
+              properties:
+                ReturnID:
+                  type: string
+                  description: ReturnID for the successful API
+                count:
+                  type: integer
+                  description: Total No. of role web app Id's
+                columns:
+                  type: array
+                  description: columns
+                  items:
+                    type: object
+                    description: Information about the columns
+                    properties:
+                      TableKey:
+                        type: string
+                        description: Whether column is a key(primary or foreign).
+                      Description:
+                        type: string
+                        description: Brief description of the column.
+                      Name:
+                        type: string
+                        description: Name of the column.
+                      Format:
+                        type: string
+                        description: Format
+                      TableName:
+                        type: string
+                        description: TableName of the column
+                      DDTitle:
+                        type: string
+                        description: Data dictionary title of the column.
+                      Type:
+                        type: integer
+                        description: Type of data in the column
+                      IsHidden:
+                        type: boolean
+                        description: Whether column is hidden.
+                      DDname:
+                        type: string
+                        description: Data dictionary name of the column.
+                      Width:
+                        type: integer
+                        description: Size of the column
+                      Title:
+                        type: string
+                        description: Title of the column
+                      ForeignKey:
+                        type: string
+                        description: Whether column holds a foreign key.
+                IsAggregrate:
+                  type: string
+                  description: Is Aggregrate
+                Results:
+                  type: array
+                  description: Result of the web apps
+                  items:
+                    type: object
+                    description: Web Apps Information
+                    properties:
+                      Entities:
+                        type: object
+                        description: List of Web Apps
+                      Row:
+                        type: object
+                        description: Information about the Role Web Application Associated with a role
+                        properties:
+                          Version:
+                            type: string
+                            description: Version
+                          IsMarketplaceApp:
+                            type: boolean
+                            description: IsMarketplaceApp
+                          AppType:
+                            type: string
+                            description: Type of the app
+                          ID:
+                            type: string
+                            description: ID of the app
+                          AppTypeDisplayName:
+                            type: string
+                            description: Type of the app display name
+                          Icon:
+                            type: string
+                            description: Path of the icons specified
+                          Description:
+                            type: string
+                            description: Description for the app usage
+                          Name:
+                            type: string
+                            description: Name of the webapp
+                FullCount:
+                  type: integer
+                  description: Total No. of web app Id's
+            InnerExceptions:
+              type: string
+              description: Inner Exceptions if any received from the API. By default it is 'null'
+            Message:
+              type: string
+              description: Error message for failure response. By default it is 'null'
+            success:
+              type: boolean
+              description: The success will be true or false
+            IsSoftError:
+              type: boolean
+              description: SoftError if true indicates this is not actually an exception but an UI warning popup.
+        Error:
+          type: object
+          description: Error message text on failure. Below message would be returned if requested data is invalid.
+          properties:
+            Invalid_InputData:
+              type: string
+              description: 'This error message is displayed when the Role with given UUID was not found. Error message:''The requested data or its dependent data was not found in the service.'''
+    SaasManageRemoveUsersAndGroupsFromRole:
+      type: object
+      properties:
+        Result:
+          type: object
+          description: Return object for a successful API call.
+          properties:
+            ErrorCode:
+              type: string
+              description: Error code if any error is received from the API. By default it is 'null'
+            Exception:
+              type: string
+              description: Exception message if any exception is received from the API. By default it is 'null'
+            MessageID:
+              type: string
+              description: Message Id for failure response. By default it is 'null'
+            Result:
+              type: string
+              description: The result will be null.
+            InnerExceptions:
+              type: string
+              description: Inner Exceptions if any received from the API. By default it is 'null'
+            Message:
+              type: string
+              description: Error message for failure response. By default it is 'null'
+            ErrorId:
+              type: string
+              description: Error ID if any error is received from the API. By default it is 'null'
+            success:
+              type: boolean
+              description: The success will be true or false.
+            IsSoftError:
+              type: boolean
+              description: SoftError if true indicates this is not actually an exception but an UI warning popup.
+        Error:
+          type: object
+          description: Error message text on failure. Below message would be returned if requested data is invalid.
+          properties:
+            Invalid_InputData:
+              type: string
+              description: 'This error message is displayed when the Role with given UUID was not found. Error message:''The requested data or its dependent data was not found in the service.'''
+security:
+  - bearerAuth: []

@@ -1,0 +1,2605 @@
+openapi: 3.0.1
+info:
+  version: 22.7.201-a104ccbac3
+  title: Authentication & Authorization
+  termsOfService: 'https://www.idaptive.com/eula/'
+servers:
+  - url: 'https://{tenant_url}/'
+    variables:
+      tenant_url:
+        default: example.id.cyberark.cloud
+paths:
+  /Security/StartAuthentication:
+    post:
+      operationId: postSecurityStartAuthentication
+      tags:
+        - Login
+      summary: Start authentication
+      description: |
+        CyberArk Identity uses OAuth 2.0 access tokens to authenticate API requests.
+        You acquire access tokens on behalf of CyberArk Identity users by calling `/Security/StartAuthentication`. Clients requiring access to resources outside of a specific user's context should use the [client credentials flow](https://docs.cyberark.com/Idaptive/Latest/en/Content/Developer/oauth/client-cred-flow.htm) instead.
+
+        Your request header must contain `X-IDAP-NATIVE-CLIENT:true` to indicate that an application is invoking the CyberArk Identity endpoint, and `Content-Type: application/json` to indicate that the body is in JSON format.
+
+        The request body must include the `TenantID`, `User`, and `API Version` attributes. To identify the user being authenticated, CyberArk Identity needs their `User` identifier and `TenantId`. If the user exists, the server returns the challenge to the client.
+
+        If you call `/Security/StartAuthentication` with a system-generated tenant URL and there is a custom URL defined for the tenant, the call returns the custom tenant URL in `PodFQDN`. Call `/Security/StartAuthentication` again with the custom tenant URL.
+
+        ## Advance Authentication
+        `/Security/StartAuthentication` initiates the user's authentication process. If the user exists, the response contains a `Summary` of either `LoginSuccess` or `NewPackage`.
+        You receive `LoginSuccess` when the request includes an `.ASPXAUTH` cookie from prior successful authentication. Otherwise, `NewPackage` responses contain an authentication package consisting of one or two challenges the user must answer. Each challenge must be completed using an MFA mechanism. Mechanisms can be either in-band or out-of-band (OOB). You collect in-band mechanism responses, such as passwords, directly from the user. Users must interact with out-of-band mechanisms, such as SMS codes, from outside of your app.
+        You should complete authentication by calling [/Security/AdvanceAuthentication](openapi/identity_merged_files/Authentication&Authorization.yaml/paths/~1Security~1AdvanceAuthentication/post) sequentially for each mechanism the user chooses to answer.
+        ## Federated users
+        When you specify a `User` associated with a SAML or OIDC-based federation, then the response contains a redirect to the external IdP.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                TenantId:
+                  type: string
+                  description: |
+                    The ID of the tenant to which the user is signing in.
+                    If this field is not provided, either the username's [login suffix](openapi/identity_merged_files/TenantManagement.yaml/paths/~1Core~1GetAliasesForTenant/post) or the request URL itself must identify the tenant.
+                  default: abc-123
+                Version:
+                  type: string
+                  description: CyberArk Identity API version. `1.0` is the only supported version.
+                  default: '1.0'
+                User:
+                  type: string
+                  description: 'The identifier of the user signing in. <!--Commented out until feature generally available Although the provided value is often a username, the user may specify other identifiers, such as emails or phone numbers, depending on the fields allowed by the tenant''s administrators. These fields are configured in the Admin Portal under User Settings. -->'
+                  default: Test_user
+              required:
+                - Version
+                - User
+      responses:
+        '200':
+          description: API-Result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SecurityStartAuthentication'
+      security: []
+      servers:
+        - url: 'https://{tenant_url}/'
+          variables:
+            tenant_url:
+              default: example.id.cyberark.cloud
+      x-idap-anon: true
+      x-codegen-request-body-name: payload
+  /Security/AdvanceAuthentication:
+    post:
+      operationId: postSecurityAdvanceAuthentication
+      tags:
+        - Login
+      summary: Advance authentication
+      description: |
+        Call `/Security/AdvanceAuthentication` to complete a single authentication challenge.
+        For most authentication requests, [/Security/StartAuthentication](openapi/identity_merged_files/Authentication&Authorization.yaml/paths/~1Security~1StartAuthentication/post) creates a `NewPackage` consisting of one or two challenges. Packages with two challenges represent multi-factor authentication (MFA).
+        You should iterate through the `Challenges` array in the order in which you receive it. For each challenge, allow the user to choose one of the provided mechanisms.
+        Some challenges can only be answered with a single mechanism. In this case, you should automatically choose the mechanism without showing the user a list of options.
+        For each successful request, you receive a response with one of three `Summary` types:
+          * `LoginSuccess`: The user has completed all challenges in the authentication package.
+          * `StartNextChallenge`: The user has completed the previous challenge and should proceed to the next one.
+          * `OobPending`: You have initiated an [out-of-band mechanism](#out-of-band-mechanisms) flow, but the user has not yet completed it.
+        ## Access tokens
+        When you receive `LoginSuccess`, the response includes an `.ASPXAUTH` cookie:  
+        `.ASPXAUTH=11BA426199A9092FBF36746C5DB361934A9B0E3E6...`
+
+        Make sure your app saves this cookie. It contains an opaque access token you need to make API requests on behalf of the authenticated user. This token's scope is limited to the user's configured permissions.
+        If your app is browser-based, the cookie be automatically stored in the user's browser and forwarded with future requests. However, if you're planning to call the CyberArk Identity API from a server, you should explicitly store the access token. You can include the access token in API request headers using the format `Authorization: Bearer 11BA426199A9092FBF...`.
+        ## In-band mechanisms
+        User passwords and security questions are in-band mechanisms. You directly collect their responses from users in your client. Then, you call `/Security/AdvanceAuthentication`, setting `Action` to `Answer` and `Answer` to the user-provided value:
+        ```json
+        {
+          "Action": "Answer",
+          "Answer": "password1234",
+          "TenantId":"ABC1234",
+          "SessionId":"3RrrrhXFcUS3UEvl-3wfgMYojGz44P76Or2Ym3zztyM1",
+          "MechanismId":"64Sn74WQXEaizC7mhZpeucoWNldHkc8z7vWc9XcIJLo1"
+        }
+        ```
+        ### User password
+        When a user chooses the `UP` mechanism, they must enter their password into your client.
+        ```json
+        {
+          "Name":"UP",
+          "AnswerType":"Text",
+          "PromptMechChosen":"Enter Password",
+          "PromptSelectMech":"Password",
+          "MechanismId":"64Sn74WQXEaizC7mhZpeucoWNldHkc8z7vWc9XcIJLo1"
+        }
+        ```
+        ### Security question
+        When a user chooses the `SQ` mechanism, they must answer at least one personal or admin-created security question.
+        ```json
+        {
+          "Name": "SQ",
+          "AnswerType": "Text",
+          "MultipartMechanism": {
+            "PromptSelectMech": "Security Question",
+            "MechanismParts": [{
+              "Uuid": "u_a4ed8e81-8e9b-416b-bc00-44ed5bf87744",
+              "QuestionText": "What is your cat's name?",
+              "PromptMechChosen": "Answer security question 'What is your cat's name?':"
+            }]
+          },
+          "Question": "What is your cat's name?",
+          "PromptMechChosen": "Answer security question 'What is your cat's name?':",
+          "PromptSelectMech": "Security Question",
+          "MechanismId": "UwGNuG9netHTOLrHFF91nO8zFBli_lVDl-0UF4Og4j01"
+        }
+        ```
+        If the user only needs to answer a single question, you can reply with their answer directly:
+        ```json
+        {
+          ...
+          "MechanismId": "OdzdNlLsH84bsmBiXabDHnIscu69RUpGpJ5oQrjWmZc1",
+          "Answer": "Smokey",
+          "Action": "Answer"
+        }
+        ```
+        Depending on their tenant's [authentication profile](https://docs.cyberark.com/Product-Doc/OnlineHelp/Idaptive/Latest/en/Content/CoreServices/Authenticate/AuthProfilesCreate.htm), the user might have to answer multiple questions. When this happens, `MechanismParts` contains one element for every question.
+        In your response, place each answer in a UUID/answer key-value pair object:
+        ```json
+        {
+          ...
+          "MechanismId": "OdzdNlLsH84bsmBiXabDHnIscu69RUpGpJ5oQrjWmZc1",
+          "Answer": {
+            "u_a4ed8e81-8e9b-416b-bc00-44ed5bf87744": "Arnold",
+            "u_144b2e18-9276-49ed-b67a-9e28692f4375": "Smokey"
+          },
+          "Action": "Answer"
+        }
+        ```
+        ## Out-of-band mechanisms
+        Some mechanisms require the user to interact with a system outside of your client. These are known as out-of-band (OOB) mechanisms.
+        Once the user has chosen an OOB mechanism, call `/Security/AdvanceAuthentication` with the `Action` set to `StartOOB`. This officially begins the waiting period in which the user must either approve the request or provide a code.
+        While you wait for the user to take action, perform a "short poll" on `/Security/AdvanceAuthentication`. You build the poll request by simply changing the original request's `Action` from `StartOOB` to `Poll`.
+        For example, you would initiate an OOB mechanism using:
+        ```json
+        {
+          "Action":"StartOOB",
+          "TenantId":"ABC1234",
+          "SessionId":"3RrrrhXFcUS3UEvl-3wfgMYojGz44P76Or2Ym3zztyM1",
+          "MechanismId":"bFxWVmtoBTV_h4C26UVfMzOGJa94zHxOqoEG_XrjZE81"
+        }
+        ```
+        After you receive a `Success` response, you would then immediately begin polling with:
+        ```json
+        {
+          "Action":"Poll",
+          "TenantId":"ABC1234",
+          "SessionId":"3RrrrhXFcUS3UEvl-3wfgMYojGz44P76Or2Ym3zztyM1",
+          "MechanismId":"bFxWVmtoBTV_h4C26UVfMzOGJa94zHxOqoEG_XrjZE81"
+        }
+        ```
+        Send this request once every second until the response `Summary` changes from `OobPending` to either `StartNextChallenge` or `LoginSuccess`.
+        ### Answerability
+        Most out-of-band mechanisms provide a one-time passcode (OTP) the user can input into your app. These types of mechanisms are called _answerable_ because you can complete them with an answer instead of waiting for polling.
+        When a user enters an answerable mechanism's OTP into your app, you should call `/Security/AdvanceAuthentication` using the original `MechanismId`. In your request, make sure to also set the `Action` to `Answer` and `Answer` to the user-provided code.
+        For example, if a user enters an OATH OTP into your app, your request should look like:
+        ```json
+        {
+          ...
+          "Action":"Answer",
+          "Answer":"728133"
+        }
+        ```
+        ### Batch operations
+        Instead of making separate API calls, you can batch `Answer` and `StartOOB` calls into one HTTP request. This is useful when you want to complete a user's in-band challenge at the same time that you initiate an out-of-band challenge.
+        Include these requests in the `MultipleOperations` top-level request body field, as in the following example:
+        ```json
+        {
+          "TenantId":"ABC1234",
+          "SessionId":"17Xg9ZtDjk2klVNWgICuJpFH_Tp66-7eRhJMpnCYY-k1",
+          "MultipleOperations":[
+              {
+                "MechanismId":"4TYsdsCI6E2bB1IFU_bww4JmtpC9Pz46DdGo_cFGykI1",
+                "Answer":"password1234",
+                "Action":"Answer"
+              },
+              {
+                "MechanismId":"Mfi55lKZ10eDCjkoezo5IsWSxv4Y3gdfkt0MaDoA9ts1",
+                "Action":"StartOOB"
+              }
+          ]
+        }
+        ```
+        ### Supported OOB mechanisms
+        The following out-of-band mechanisms are supported:
+        #### Phone call
+        **Answerable:** `❌`  
+        When a user chooses the `PF` mechanism, they receive a phone call. During the call, they must enter their [PIN](https://docs.cyberark.com/Product-Doc/OnlineHelp/Idaptive/Latest/en/Content/UserPortal/SpecPhonePIN.htm) using the phone's keypad.
+        ```json
+        {
+          "Name":"PF",
+          "AnswerType":"StartOob",
+          "PartialPhoneNumber":"6789",
+          "PromptMechChosen":"We will now attempt to call your phone (6789). Please follow the instructions to proceed with authentication.",
+          "PromptSelectMech":"Phone Call... XXX-6789",
+          "MechanismId":"QqvZbCxYSkyDTEICR-6H6f_mzaxlfotu2wQxnVejsOo1"
+        }
+        ```
+        #### Email
+        **Answerable:** `✔️`  
+        When a user chooses the `EMAIL` mechanism, they receive an email containing both a one-time passcode (OTP) and a link. If the user clicks the link, the challenge advances at your next poll request.
+        ```json
+        {
+          "Name":"EMAIL",
+          "MaskedEmailAddress":"***@cyberark.com",
+          "AnswerType":"StartTextOob",
+          "PromptMechChosen":"Email sent to xxxx@cyberark.com. Click the link or manually enter the code to authenticate.",
+          "PromptSelectMech":"Email... @cyberark.com",
+          "PartialAddress":"cyberark.com",
+          "MechanismId":"RPcez9pD9AooKNT5UkEq7kozzer6e0BGn7GGzjDlQqc1"
+        }
+        ```
+        #### SMS
+        **Answerable:** `✔️`  
+        When a user chooses the `SMS` mechanism, they receive an SMS text containing both a one-time passcode (OTP) and a link. If the user clicks the link, the challenge advances at your next poll request.
+        ```json
+        {
+          "Name":"SMS",
+          "AnswerType":"StartTextOob",
+          "PartialDeviceAddress":"6789",
+          "PromptMechChosen":"Sending a text to mobile phone ending... 6789. Enter the code or click the link in the message to proceed with authentication.",
+          "PromptSelectMech":"SMS... XXX-6789",
+          "MechanismId":"1YhBw3Gg4Z2etR8RBQebQdTcpRCD-UVBv27xTVNmSDM1"
+        }
+        ```
+        #### OATH OTP
+        **Answerable:** `✔️`  
+        When a user chooses the `OATH` mechanism, they must generate an [OATH one-time passcode (OTP)](https://docs.cyberark.com/Product-Doc/OnlineHelp/Idaptive/Latest/en/Content/CoreServices/Authenticate/OATHOTPConfig.htm) in either their mobile authenticator app (e.g. Google Authenticator) or the desktop CyberArk Authenticator app.
+        Most users manually enter their OTP into your app. However, users that have configured the CyberArk Identity mobile app as their OTP authenticator can choose to approve the login within that app.
+        For this reason, the OATH OTP mechanism supports `Poll` as a form of advancement.
+        ```json
+        {
+          "Name": "OATH",
+          "AnswerType": "StartTextOob",
+          "PromptMechChosen": "Enter Verification Code",
+          "UiPrompt": "OATH OTP Client",
+          "PromptSelectMech": "OATH OTP Client",
+          "MechanismId": "DKetaPxIW0yn8e-jBi7fTUz0H8OdsCNCscUijVXUR6s1"
+        }
+        ```
+        #### Mobile Authenticator
+        **Answerable:** `✔️`  
+        When a user chooses the `OTP` mechanism, they must either generate an OTP or approve a push notification from within the CyberArk Identity mobile app.
+        ```json
+        {
+          "Name":"OTP",
+          "AnswerType":"StartTextOob",
+          "PromptMechChosen":"Sent Mobile Authenticator request to your device. Please follow the instructions to proceed with authentication or enter verification code here.",
+          "PromptSelectMech":"Mobile Authenticator",
+          "MechanismId":"rKgeXzVIKkKR5ERTUKhT7XuyaYS6LcLhpLkSythzHIA1"
+        }
+        ```
+        #### FIDO2 Security Key
+        **Answerable:** `✔️`  
+        When a user chooses the `U2F` mechanism, they must insert a [FIDO2 security key](https://docs.cyberark.com/Product-Doc/OnlineHelp/Idaptive/Latest/en/Content/CoreServices/Authenticate/U2FAuth.htm) into their device.
+        ```json
+        {
+          "Name": "U2F",
+          "AnswerType": "StartTextOob",
+          "PromptMechChosen": "Insert security key and press its button",
+          "UiPrompt": "FIDO2 Security Key",
+          "PromptSelectMech": "FIDO2 Security Key",
+          "MechanismId": "xmbeXzVI8v15ERTUKh7TXuyaY133cLhpLkSythzHIA1",
+          "Type": "SECURITYKEY"
+        }
+        ```
+        Your client must use a browser or native API such as [WebAuthn](https://webauthn.guide/) to receive a code from the security key. This process occurs solely on the user's device.
+        CyberArk Identity cannot observe this process, and for that reason, polling is not supported. To advance `U2F`, you must submit the code as an answer.
+        #### QR Code
+        **Answerable:** `❌`  
+        When a user chooses the `QR` mechanism, they must scan a QR code using the QR Code Authenticator feature in the CyberArk Identity mobile app. The QR code your client should display is provided as a base64-encoded image.
+        The challenge advances at your next poll request once the user has scanned the code on their enrolled device.
+        ```json
+        {
+          "AnswerType": "StartOob",
+          "Name": "QR",
+          "PromptMechChosen": "Scan QR Code with the CyberArk Identity app on an enrolled device.",
+          "PromptSelectMech": "QR Code",
+          "MechanismId": "VuaMU...",
+          "Image": "data:image/png;base64,iVBORw..."
+        }
+        ```
+        ## Interface text
+        Some mechanisms include the `PromptSelectMech` and `PromptMechChosen` descriptions. These provide user-friendly interface text tailored to each mechanism.
+        ```json
+        {
+          ...
+          "PromptSelectMech":"Email... @cyberark.com",
+          "PromptMechChosen":"Email sent to xxxx@cyberark.com. Click the link or manually enter the code to authenticate."
+        }
+        ```
+        Use `PromptSelectMech` as a short description of the mechanism in a list of possible mechanism choices. Use `PromptMechChosen` to provide completion criteria once the user has selected the mechanism.
+        ## Failures
+        The following scenarios can cause a mechanism to fail:
+        * The user provides an invalid value for an in-band or out-of-band mechanism
+        * The user denies an OOB confirmation, such as a push notification
+        * An OOB mechanism times out due to a lack of user action
+        To mitigate brute force attacks, any of these failures invalidates the authentication package with the following generic message:
+        ```json
+        {
+          ...
+          "success": false,
+          "Result": {
+              "Summary": "Failure"
+          },
+          "Message": "Authentication (login or challenge) has failed. Please try again or contact your system administrator.",
+        }
+        ```
+        Your client should offer the user the ability to start the authentication process again. However, you must call [/Security/StartAuthentication](openapi/identity_merged_files/Authentication&Authorization.yaml/paths/~1Security~1StartAuthentication/post) to receive a new authentication package.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                Action:
+                  type: string
+                  description: |
+                    Depending on the type of mechanism you are advancing, use one of the following actions:
+                    * `Answer` (advance an in-band or answerable OOB mechanism)
+                    * `StartOOB` (initiate an out-of-band mechanism)
+                    * `Poll` (wait for a user to pass or fail an OOB mechanism)
+                    * `ForgotPassword`
+                    * `RetryOOB`
+                  default: Answer
+                Answer:
+                  type: string
+                  description: 'The user-provided value used to advance in-band or answerable OOB mechanisms. For example, a password or OTP.'
+                  default: password1234
+                MechanismId:
+                  type: string
+                  description: 'The ID of the mechanism you are advancing. Provided in the [/Security/StartAuthentication](openapi/identity_merged_files/Authentication&Authorization.yaml/paths/~1Security~1StartAuthentication/post) response.'
+                  default: DKetaPxIW0yn8e-jBi7fTUz0H8OdsCNCscUijVXUR6s1
+                SessionId:
+                  type: string
+                  description: 'The ID of the authentication session in which the mechanism was created. Provided in the [/Security/StartAuthentication](openapi/identity_merged_files/Authentication&Authorization.yaml/paths/~1Security~1StartAuthentication/post) response.'
+                  default: 3RrrrhXFcUS3UEvl-3wfgMYojGz44P76Or2Ym3zztyM1
+                TenantId:
+                  type: string
+                  description: 'The ID of the tenant to which the user is authenticating. This value should be consistent with the tenant used in the [/Security/StartAuthentication](openapi/identity_merged_files/Authentication&Authorization.yaml/paths/~1Security~1StartAuthentication/post).'
+                  default: abc-123
+                PersistentLogin:
+                  type: boolean
+                  description: This flag indicates whether the session should persist after the user closes the browser.
+                  default: true
+              required:
+                - Action
+                - MechanismId
+                - SessionId
+      responses:
+        '200':
+          description: API-Result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SecurityAdvanceAuthentication'
+      security: []
+      servers:
+        - url: 'https://{tenant_url}/'
+          variables:
+            tenant_url:
+              default: example.id.cyberark.cloud
+      x-idap-anon: true
+      x-codegen-request-body-name: payload
+  /Security/ChallengeUser:
+    post:
+      tags:
+        - Login
+      summary: Get challenge state
+      description: |-
+        <p>This API is used to get challenge state ID for an authentication profile. 
+                    <ul><li>The API is invoked when you want to step up authentication for sensitive applications. </li>
+                    <li>Pass the authentication profile name of the profile configured for the application to this API.</li>
+                    <li>The ChallengeID is received as a response for this API, and it is used to start the step-up authentication for the app.</li></ul></p>
+      parameters:
+        - name: profileName
+          in: query
+          description: Authentication profile name should be provided which is mapped against the application for which step-up authentication should be triggered.
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: API-Result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SecurityChallengeUser'
+      security:
+        - bearerAuth: []
+      servers:
+        - url: 'https://{tenant_url}/'
+          variables:
+            tenant_url:
+              default: example.id.cyberark.cloud
+      x-idap-anon: false
+  /Security/StartChallenge:
+    post:
+      tags:
+        - Login
+      summary: Start step-up challenge
+      description: |-
+        <p>The API is used to start the step-up authentication for sensitive applications. 
+                    <ul><li>This API is invoked when a user is trying to access a sensitive application that requires additional challenges to be fulfilled.</li>
+                    <li>The challenge ID parameter received from the “/ChallengeUser” API is sent as a request parameter.</li></ul></p>
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                Version:
+                  type: string
+                  description: 'Version of the data being sent. Options: 1.0'
+                ChallengeStateId:
+                  type: string
+                  description: Challenge Id returned by Challenge user API.
+              required:
+                - Version
+                - ChallengeStateId
+      responses:
+        '200':
+          description: API-Result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SecurityStartChallenge'
+      security:
+        - bearerAuth: []
+      servers:
+        - url: 'https://{tenant_url}/'
+          variables:
+            tenant_url:
+              default: example.id.cyberark.cloud
+      x-idap-anon: true
+      x-codegen-request-body-name: payload
+  /Security/AnswerOOBChallenge:
+    post:
+      tags:
+        - Login
+      summary: Answer out-of-band challenge
+      description: |
+        [Out-of-band mechanisms](openapi/identity_merged_files/Authentication&Authorization.yaml/paths/~1Security~1AdvanceAuthentication/post#out-of-band-mechanisms) invoke this endpoint to indicate that a user has taken action on their device.  
+        To complete an authentication challenge, a user may choose an OOB mechanism. While the client polls [/Security/AdvanceAuthentication](openapi/identity_merged_files/Authentication&Authorization.yaml/paths/~1Security~1AdvanceAuthentication/post) to wait for a response, the user may respond to the mechanism on their device.  
+        If this occurs, either a third-party service or an internal handler must invoke this endpoint so that CyberArk Identity can notify the client at the next polling tick.
+        Note that while `SMS` and `EMAIL` use this API, the `PF` phone call mechanism does not.
+      parameters:
+        - name: answer
+          in: query
+          description: The answer contained within the out-of-band message or link
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: API-Result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SecurityAnswerOOBChallenge'
+      security: []
+      servers:
+        - url: 'https://{tenant_url}/'
+          variables:
+            tenant_url:
+              default: example.id.cyberark.cloud
+      x-idap-anon: true
+      x-codegen-request-body-name: payload
+  /Security/SubmitOathOtpCode:
+    post:
+      tags:
+        - Login
+      summary: Submit OATH OTP code
+      description: The request must be made using a tenant-specific URL.
+      parameters:
+        - name: otpCode
+          in: query
+          description: OATH One time password.
+          required: true
+          schema:
+            type: string
+        - name: userUuid
+          in: query
+          description: Uuid for the authentication user.
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                otpCode:
+                  type: string
+                  description: OATH One time password.
+                userUuid:
+                  type: string
+                  description: Uuid for the authentication user.
+              required:
+                - otpCode
+                - userUuid
+      responses:
+        '200':
+          description: API-Result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SecuritySubmitOathOtpCode'
+      security:
+        - bearerAuth: []
+      servers:
+        - url: 'https://{tenant_url}/'
+          variables:
+            tenant_url:
+              default: example.id.cyberark.cloud
+      x-idap-anon: true
+      x-codegen-request-body-name: payload
+  /Security/SubmitQRCode:
+    post:
+      tags:
+        - Login
+      summary: Submit QR Code
+      description: |-
+        The request must be made using a tenant-specific URL.
+                    The request must be authenticated
+      parameters:
+        - name: sessionId
+          in: query
+          description: The sessionId this QR code mech belongs to.
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: API-Result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SecuritySubmitQRCode'
+      security: []
+      servers:
+        - url: 'https://{tenant_url}/'
+          variables:
+            tenant_url:
+              default: example.id.cyberark.cloud
+      x-idap-anon: false
+      x-codegen-request-body-name: payload
+  /U2f/AnswerRegistrationChallenge:
+    post:
+      tags:
+        - Login
+      summary: Answer registration challenge
+      parameters:
+        - name: rawRegisterResponse
+          in: query
+          description: The raw registation response.
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                ClientData:
+                  type: string
+                  description: The client data.
+                RegistrationData:
+                  type: string
+                  description: The registration data.
+                Challenge:
+                  type: string
+                  description: The registration challenge.
+              required:
+                - ClientData
+                - RegistrationData
+                - Challenge
+      responses:
+        '200':
+          description: API-Result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/U2fAnswerRegistrationChallenge'
+      security: []
+      servers:
+        - url: 'https://{tenant_url}/'
+          variables:
+            tenant_url:
+              default: example.id.cyberark.cloud
+      x-idap-anon: false
+      x-codegen-request-body-name: payload
+  /Security/ForgotUsername:
+    post:
+      tags:
+        - Login
+      summary: Forgot username
+      description: The request must be made using a tenant-specific URL.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                SearchKey:
+                  type: string
+                  description: Email address of the user to search for.
+              required:
+                - SearchKey
+      responses:
+        '200':
+          description: API-Result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SecuritySubmitOathOtpCode'
+      security: []
+      servers:
+        - url: 'https://{tenant_url}/'
+          variables:
+            tenant_url:
+              default: example.id.cyberark.cloud
+      x-idap-anon: true
+      x-codegen-request-body-name: payload
+  /Security/StartForgotUsername:
+    post:
+      tags:
+        - Login
+      summary: Start forgot username session
+      description: "<p><ul><li>Use this API to start the forgot username session that looks similar to an <a href=https://identity-developer.cyberark.com/docs/advancing-multi-factor-authentication#advancing-multifactor-authentication>MFA authentication</a> session.</li>\n            <li>Only system administrators, users with user management rights, or the user itself can invoke this API.</li>\n            <li>When users forget their system username when authenticating, this API gets invoked and click on the \"Don't know username?\" link provided below the username input field.</li>\n            <li>By invoking this API, sending the username to the user's email address is initiated.</li>\t\t \n            <li>If the user exists in the CyberArk Identity cloud directory, the server returns an MFA package with a single challenge ('AdvanceForgotUsername' package).</li>\n            <li>The Challenges array in the response contains a mechanism that must be fulfilled to advance the process and send an email to the user.</li>\n            <li>The user's response to this mechanism is processed via the <a href=https://identity-developer.cyberark.com/reference/post_security-advanceforgotusername>AdvanceForgotUsername</a> endpoint.</li></ul></p>"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                Version:
+                  type: string
+                  description: The payload key version
+                  default: '1.0'
+              required:
+                - Version
+      responses:
+        '200':
+          description: API-Result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SecurityStartForgotUsername'
+      security: []
+      servers:
+        - url: 'https://{tenant_url}/'
+          variables:
+            tenant_url:
+              default: example.id.cyberark.cloud
+      x-idap-anon: true
+      x-codegen-request-body-name: payload
+  /Security/AdvanceForgotUsername:
+    post:
+      tags:
+        - Login
+      summary: Advance a forgot username session (similar to MFA advance authentication)
+      description: |-
+        <p><ul><li>Use this API to advance the forgot username session for a user who has forgotten the username to authenticate to CyberArk Identity.</li>
+                    <li>Only system administrators, users with user management rights, or the user itself can invoke this API.</li>
+                    <li>This API call handles an MFA-like package with a single challenge (particular case 'ForgotUsername' package).</li>
+                    <li>Once <a href=https://identity-developer.cyberark.com/reference/post_security-startforgotusername>StartForgotUsername</a> API is invoked, and a user forgot username session had been created successfully, the advance forgot username API is invoked to advance the username retrieval process further.</li>
+                    <li>SessionId and MechanismId returned as part of the "/startForgotUsername" API are passed as request parameters to this API.</li>
+                    <li>After invoking this request, CyberArk Identity will attempt to email the specified email address containing the username.</li>
+                    <li>If this process is successful, the success field in the response will be set to True, and the ClientMessage will indicate that the username was sent.</li></ul></p>
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                TenantId:
+                  type: string
+                  description: Tenant ID received as a response to the start forgot username API
+                  default: ABC123
+                Action:
+                  type: string
+                  description: The payload key action
+                  default: Answer
+                PersistentLogin:
+                  type: string
+                  description: Flag indicating if the user's session should persist after closing the browser
+                  default: 'false'
+                SessionId:
+                  type: string
+                  description: Session ID received as a response to the start forgot username API
+                  default: -1
+                MechanismId:
+                  type: string
+                  description: Mechanism ID received as a response to the start forgot username API
+                  default: Y23rY-mR61xmDG3bmplsCNtfSJ0ZydsgrdtwsdYULkFTiI1
+                Answer:
+                  type: string
+                  description: 'For mechanism that need to be answered such as password, security code, etc., provide the answer in this field'
+                  default: SamplePassword123
+              required:
+                - TenantId
+                - Action
+                - PersistentLogin
+                - SessionId
+                - MechanismId
+                - Answer
+      responses:
+        '200':
+          description: API-Result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SecurityAdvanceForgotUsername'
+      security:
+        - bearerAuth: []
+      servers:
+        - url: 'https://{tenant_url}/'
+          variables:
+            tenant_url:
+              default: example.id.cyberark.cloud
+      x-idap-anon: true
+      x-codegen-request-body-name: payload
+  /Security/Logout:
+    post:
+      tags:
+        - Logout
+      summary: Logout
+      description: |-
+        Invoke this API to log the user out. After the logout, the user is redirected to redirectUrl if it is defined in the request body. The URL should be set at the redirectUrl parameter. The RedirectUrl can be relative or an external URL.
+        Any user can access this API. It does not require any special rights or roles.
+
+        Once you invoke this API, the authentication token becomes invalid. 
+      parameters:
+        - name: redirectUrl
+          in: query
+          description: It is the URL to redirect the user after the logout.
+          schema:
+            type: string
+        - name: allowIWA
+          in: query
+          description: Specifies whether to allow windows authentication or not. By default it is false.
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: API-Result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SecurityLogout'
+      security:
+        - bearerAuth: []
+      servers:
+        - url: 'https://{tenant_url}/'
+          variables:
+            tenant_url:
+              default: example.id.cyberark.cloud
+      x-idap-anon: true
+      x-codegen-request-body-name: payload
+  /Security/StartSocialAuthentication:
+    post:
+      tags:
+        - Login
+      summary: Start social authentication
+      description: |-
+        <p>Invoke this API when you want to enable the external users (such as customers or temporary contractors) to use their existing social media credentials to log into the CyberArk Identity user portal. 
+                    <ul><li>This Endpoint initiates the Social Authentication for the user. </li>
+                    <li>For detailed Configuration refer <a href="https://identity-developer.cyberark.com/docs/social-login-2">Social Login</a></li></p>
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                PostExtIdpAuthCallbackUrl:
+                  type: string
+                  description: Where the Idp should send the user after authentication.
+                IdpName:
+                  type: string
+                  description: 'The identity provider name (Facebook, Google, Twitter, LinkedIn, Microsoft).'
+              required:
+                - PostExtIdpAuthCallbackUrl
+                - IdpName
+      responses:
+        '200':
+          description: API-Result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SecurityStartSocialAuthentication'
+      security: []
+      servers:
+        - url: 'https://{tenant_url}/'
+          variables:
+            tenant_url:
+              default: example.id.cyberark.cloud
+      x-idap-anon: true
+      x-codegen-request-body-name: payload
+  /Security/StartQRCodeAuthentication:
+    post:
+      tags:
+        - Login
+      summary: Start QR code authentication
+      description: |-
+        The authentication package returned is a complex structure that guides the caller through the authentication process. Multiple calls to AdvanceAuthentication
+                    may be required to complete the process.
+                    If QR tenant config is disabled, this will result in failure.
+                    Pod or tenant feature flag can be used to disable this feature. It is disabled by default.
+                    Authorization cookie is required in Header arguments
+      parameters:
+        - name: guid
+          in: query
+          description: The guid associated to login QR code.
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                guid:
+                  type: string
+                  description: The guid to start authentication on.
+              required:
+                - guid
+      responses:
+        '200':
+          description: API-Result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SecurityStartQRCodeAuthentication'
+      security: []
+      servers:
+        - url: 'https://{tenant_url}/'
+          variables:
+            tenant_url:
+              default: example.id.cyberark.cloud
+      x-idap-anon: false
+      x-codegen-request-body-name: payload
+  /UserMgmt/SignOutCurrentSession:
+    post:
+      tags:
+        - Logout
+      summary: Sign out from current session
+      description: |-
+        <p><ul><li>Invoke this API to SignOut the user from that particular local session while accessing the application.</li>
+                    <li>Sign users out of your application by ending their local session. This signs the user out of your app, but doesn't sign the user out of CyberArk Identity.</li>
+                    <li>User with default everybody role can access this API. It does not require any special rights.</li>
+                    </ul></p>
+      responses:
+        '200':
+          description: API-Result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserMgmtSignOutCurrentSession'
+      security:
+        - bearerAuth: []
+      servers:
+        - url: 'https://{tenant_url}/'
+          variables:
+            tenant_url:
+              default: example.id.cyberark.cloud
+      x-idap-anon: false
+  /UserMgmt/SignOutEverywhere:
+    post:
+      tags:
+        - Logout
+      summary: Sign out from everywhere
+      description: |-
+        <p><ul><li>Invoke this API to SignOut the user from all the applications everywhere.</li>
+                    <li>All the sessions and cookies present for that user will be deleted and user needs to be login again.</li>
+                    <li>Only system administrator, users with user management rights, or the user itself can invoke this API.</li>
+                    <li>NOTE: User should be logged in to the application in order to sign out from the application.</li></ul></p>
+      parameters:
+        - name: id
+          in: query
+          description: The unique ID of the user who is having access to applications should be provided. The unique ID is generated when the user is created or invited.
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: API-Result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserMgmtSignOutEverywhere'
+      security:
+        - bearerAuth: []
+      servers:
+        - url: 'https://{tenant_url}/'
+          variables:
+            tenant_url:
+              default: example.id.cyberark.cloud
+      x-idap-anon: false
+  /OAuth2/GetMeta:
+    post:
+      tags:
+        - OAuth & OpenID Connect
+      summary: Get metadata
+      description: |-
+        <li> The API returns the metadata of the OpenID provider. </li> <li> Please refer to <a href="https://identity-developer.cyberark.com/docs/about-openid-connect#openid-connect-metadata"> 
+           OpenID Connect provider metadata </a> for more details. </li>
+      parameters:
+        - name: serviceName
+          in: query
+          description: Application ID of the OpenID Connect custom app.
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: API-Result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OAuth2GetMeta'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OAuth2GetMeta_400_errors'
+      security: []
+      servers:
+        - url: 'https://{tenant_url}/'
+          variables:
+            tenant_url:
+              default: example.id.cyberark.cloud
+      x-idap-anon: true
+      x-codegen-request-body-name: payload
+  '/OAuth2/Keys/{app_id}':
+    post:
+      tags:
+        - OAuth & OpenID Connect
+      summary: Get JWT keys
+      description: '<li>This API returns public key that can be used to verify the signatures of access or ID tokens that are received by authorization server.</li> <li>For more information refer to validating <a href="https://identity-developer.cyberark.com/docs/access-tokens#access-token-validation"> access </a>  and <a href="https://identity-developer.cyberark.com/docs/access-tokens#access-token-validation"> ID </a> tokens.</li>'
+      parameters:
+        - name: app_id
+          in: path
+          description: The application ID of the Open ID connect custom web app
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: API-Result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OAuth2Keys'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OAuth2Keys_400_errors'
+      security:
+        - bearerAuth: []
+      servers:
+        - url: 'https://{tenant_url}/'
+          variables:
+            tenant_url:
+              default: example.id.cyberark.cloud
+      x-idap-anon: true
+      x-codegen-request-body-name: payload
+  '/OAuth2/Authorize/{app_id}/':
+    post:
+      tags:
+        - OAuth & OpenID Connect
+      summary: Authorize
+      description: |-
+        <li>The authorize API is used to send an authorization and authentication request to CyberArk Identity.</li>             <li>CyberArk Identity authenticates the user and returns authorization code/tokens based on the grant type to the client application as a part of the callback response.</li>                       <li>Refer to the guides<a href="https://identity-developer.cyberark.com/docs/oidc-authentication">OpenID Connect</a> and 
+         <a href="https://identity-developer.cyberark.com/docs/oauth">OAuth 2.0</a> for more information</li>                    
+      parameters:
+        - name: scope
+          in: query
+          description: 'The scopes for which the authorization is requested. The scopes can be space separated. The scopes can be used to defined the <a href="https://identity-developer.cyberark.com/docs/api-scopes"> APIs </a>  and the <a href="https://identity-developer.cyberark.com/docs/claims"> claims </a> information that the client application can access <b>Note:</b> ''OpenID'' scope is required to get ID token.'
+          required: true
+          schema:
+            type: string
+        - name: redirect_uri
+          in: query
+          description: The callback URI to which the user gets redirected along with the authorization code or tokens. The redirect URI must be in the list of authorized redirect URIs.
+          required: true
+          schema:
+            type: string
+        - name: prompt
+          in: query
+          description: |
+            Space delimited, case-sensitive list of ASCII string values that specifies whether the authorization server prompts the End-User for reauthentication and consent. 
+            CyberArk Identity supports the following values:
+                   1. <b>none</b>: An error is returned if an End-User is not already authenticated.
+                   2. <b>login</b>:  CyberArk Identity prompts the End-User for reauthentication. If the user cannot be reauthenticated, an error is returned.
+          schema:
+            type: string
+        - name: code_challenge_method
+          in: query
+          description: The method used to derive the ‘code challenge’ using the ‘code verifier.’ This param is only applicable for PKCE flow.
+          schema:
+            type: string
+            example: SHA256
+          examples:
+            default:
+              value: SHA256
+        - name: code_challenge
+          in: query
+          description: 'It is derived from the <a href=https://identity-developer.cyberark.com/docs/authorization-code-flow-with-pkce#code-verifier-and-code-challenge> code verifier </a>.  This param is only applicable for PKCE flow.'
+          schema:
+            type: string
+        - name: client_id
+          in: query
+          description: 'The client ID is the unique ID that CyberArk Identity issues to the client application. '
+          required: true
+          schema:
+            type: string
+            example: 90ab28fc-f890-4b3d-9c44-722c9b6ecf2
+          examples:
+            default:
+              value: 90ab28fc-f890-4b3d-9c44-722c9b6ecf2
+        - name: client_secret
+          in: query
+          description: A unique code that an authorization service issues when the service registers the application. You can think of it as the password for the client application.
+          schema:
+            type: string
+        - name: response_type
+          in: query
+          description: |
+            The response type determines the grant type of OAuth / OpenID Connect. CyberArk Identity supports the following grant types: 
+                <b>1. Authorization code flow (with/without PKCE):</b> code
+                <b>2. Implicit flow:</b> id_token; token id_token
+                <b>3. Hybrid flow:</b> code token id_token; code token; code id_token
+          required: true
+          schema:
+            type: string
+        - name: state
+          in: query
+          description: The Client should use the content of this parameter to make sure the Code it received matches the authorization request it sent.
+          schema:
+            type: string
+        - name: app_id
+          in: path
+          description: The application ID of the Open ID connect custom web app
+          required: true
+          schema:
+            type: string
+      responses:
+        '302':
+          description: Successful API request
+          content:
+            application/json:
+              schema:
+                anyOf:
+                  - $ref: '#/components/schemas/OAuth2Authorize_authenticatedResponse'
+                  - $ref: '#/components/schemas/OAuth2Authorize_unauthenticatedResponse'
+                  - $ref: '#/components/schemas/OAuth2Authorize_302_errors'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OAuth2Authorize_400_errors'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OAuth2Authorize_500_errors'
+      security:
+        - bearerAuth: []
+      servers:
+        - url: 'https://{tenant_url}/'
+          variables:
+            tenant_url:
+              default: example.id.cyberark.cloud
+      x-idap-anon: true
+      x-codegen-request-body-name: payload
+  '/OAuth2/Confirm/{app_id}':
+    post:
+      tags:
+        - OAuth & OpenID Connect
+      summary: Confirm user consent
+      description: '<li>This API would be called to approve/deny the user consent prompted by the authorization server.</li> <li>The user has to authenticate to CyberArk Identity to approve/deny the request. </li> <li> Refer to the guide <a href="https://identity-developer.cyberark.com/docs/oidc-consent">OpenID Connect consent</a> for more information.</li>'
+      parameters:
+        - name: bounce
+          in: query
+          description: 'This value determines if the user has been authenticated or not. The value can be found in the  <a href="https://identity-developer.cyberark.com/reference/post_oauth2-authorize-app-id-">login redirect URI</a> sent as a response to the authorization request. '
+          required: true
+          schema:
+            type: string
+        - name: result
+          in: query
+          description: 'Approve / deny the request. This parameter takes two values: 0, 1 (1 - approve, 0- deny). The default value is 0.'
+          schema:
+            type: integer
+            example: 0
+          examples:
+            default:
+              value: 0
+        - name: scopes
+          in: query
+          description: 'Comma delimited list of approved scopes prompted for consent. '
+          required: true
+          schema:
+            type: string
+        - name: deniedScopes
+          in: query
+          description: Comma delimited list of denied scopes prompted for consent.
+          required: true
+          schema:
+            type: string
+        - name: app_id
+          in: path
+          description: The application ID of the Open ID connect custom web app
+          required: true
+          schema:
+            type: string
+      responses:
+        '302':
+          description: Successful API result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OAuth2Confirm'
+        '401':
+          description: Unauthorized access
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Unauthorized_user_error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OAuth2Confirm_500_errors'
+      security:
+        - bearerAuth: []
+      servers:
+        - url: 'https://{tenant_url}/'
+          variables:
+            tenant_url:
+              default: example.id.cyberark.cloud
+      x-idap-anon: false
+  '/OAuth2/Token/{app_id}':
+    post:
+      tags:
+        - OAuth & OpenID Connect
+      summary: Token request
+      description: '<li>The token endpoint is used by the client application to request the tokens from the authorization server.</li>             <li>The authorization server validates the client before returning the tokens to the client application.</li>   <li>Please refer to <a href="https://identity-developer.cyberark.com/docs/oidc-authentication"> OpenID Connect </a> for more details.</li></ul>   '
+      parameters:
+        - name: app_id
+          in: path
+          description: The application ID of the Open ID connect custom web app
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                grant_type:
+                  type: string
+                  description: |
+                    The OAuth/OIDC grant type. CyberArk Identity supports the following grant types: 
+                    1. authorization_code: Refers to authorization code flow (with/without PKCE) and hybrid flow
+                    2. client_credentials: Refers to client credentials flow
+                    3. password: refers to ROPG flow
+                    4. refresh_token: Used to refresh an access token
+                redirect_uri:
+                  type: string
+                  description: The callback URI to which the user gets redirected along with the authorization code or tokens.  The redirect URI must be in the list of authorized redirect URIs.
+                client_id:
+                  type: string
+                  description: The client ID is the unique ID that CyberArk Identity issues to the client application.
+                client_secret:
+                  type: string
+                  description: A unique code that an authorization service issues when the service registers the application.  You can think of it as the password for the client application.
+                code:
+                  type: string
+                  description: Authorization code sent with Redirect URI.
+                code_verifier:
+                  type: string
+                  description: '<a href="https://identity-developer.cyberark.com/docs/authorization-code-flow-with-pkce#code-verifier-and-code-challenge"> Code verifier </a>  is a high-entropy cryptographic random STRING. </a> This is used for only PKCE flow.'
+                state:
+                  type: string
+                  description: The Client should use the content of this parameter to make sure the Code it received matches the authorization request it sent.
+                nonce:
+                  type: string
+                  description: 'The string value is used to associate a client session with an access token and to mitigate replay attacks.  The value is passed through unmodified from the Authentication Request to the access Token.  If present in the access Token, Clients must verify that the nonce Claim Value equals the value of the nonce parameter sent in the Authentication Request.'
+              required:
+                - grant_type
+                - redirect_uri
+                - client_id
+                - code
+      responses:
+        '200':
+          description: API-Result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OAuth2Token'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OAuth2Token_400_errors'
+      security: []
+      servers:
+        - url: 'https://{tenant_url}/'
+          variables:
+            tenant_url:
+              default: example.id.cyberark.cloud
+      x-idap-anon: true
+      x-codegen-request-body-name: payload
+  '/OAuth2/UserInfo/{app_id}':
+    post:
+      tags:
+        - OAuth & OpenID Connect
+      summary: UserInfo
+      description: '<li> The <a href="https://identity-developer.cyberark.com/docs/userinfo-endpoint"> UserInfo</a> endpoint returns authorized information (claims) about the end-user  represented by the corresponding authorization grant.</li> <li>To obtain the requested claims about the End-User, the client requests to the UserInfo Endpoint  using an Access Token obtained through OpenID Connect Authentication. </li> <li> The claims are represented as JSON objects containing a collection of key-value pairs.</li> <li>Standard or additional claims can be added to the userinfo response. Please refer <a href="https://identity-developer.cyberark.com/docs/claims"> claims </a> for more information</li>'
+      parameters:
+        - name: app_id
+          in: path
+          description: The application ID of the Open ID connect custom web app
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: API-Result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OAuth2UserInfo'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OAuth2UserInfo_400_errors'
+        '401':
+          description: The error is dispalyed when the access token used is expired.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Unauthorized_user_error'
+      security:
+        - bearerAuth: []
+      servers:
+        - url: 'https://{tenant_url}/'
+          variables:
+            tenant_url:
+              default: example.id.cyberark.cloud
+      x-idap-anon: false
+  '/OAuth2/Introspect/{app_id}':
+    post:
+      tags:
+        - OAuth & OpenID Connect
+      summary: Introspect tokens
+      description: '<li>Access, refresh or ID tokens can be validated using the this endpoint. If the token is valid the API returns a boolean that indicates whether it is active.</li><li> If the token is active, additional data about the token is also returned.</li> <li>Note that if the token is invalid, expired, or revoked, it is considered inactive.</li>'
+      parameters:
+        - name: app_id
+          in: path
+          description: The application ID of the Open ID connect custom web app
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                token:
+                  type: string
+                  description: 'Token can be access/ ID / refresh token. Ex: abcdefyhuk23fj4j5b4'
+              required:
+                - token
+      responses:
+        '200':
+          description: API-Result
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/OAuth2Introspect_tokenActive'
+                  - $ref: '#/components/schemas/OAuth2Introspect_tokenInactive'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OAuth2Introspect_400_errors'
+      security:
+        - bearerAuth: []
+      servers:
+        - url: 'https://{tenant_url}/'
+          variables:
+            tenant_url:
+              default: example.id.cyberark.cloud
+      x-idap-anon: true
+      x-codegen-request-body-name: payload
+  '/OAuth2/Revoke/{app_id}':
+    post:
+      tags:
+        - OAuth & OpenID Connect
+      summary: Revoke tokens
+      description: '<li>This revoke API allows a client to invalidate its tokens if the end-user logs out,  changes identity, or uninstalls the respective application.</li> <li>The client ID and client secret should be passed as authorization header of type Basic.</li> <li>Refer guides <a href="https://identity-developer.cyberark.com/docs/revoke-tokens">Revoke Token</a> for more information.</li>'
+      parameters:
+        - name: app_id
+          in: path
+          description: The application ID of the Open ID connect custom web app
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                token:
+                  type: string
+                  description: 'Access / ID token returned from token endpoint Ex: abhdb...'
+              required:
+                - token
+      responses:
+        '200':
+          description: API-Result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OAuth2Revoke'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OAuth2Revoke_400_errors'
+      security:
+        - basicAuth: []
+      servers:
+        - url: 'https://{tenant_url}/'
+          variables:
+            tenant_url:
+              default: example.id.cyberark.cloud
+      x-idap-anon: true
+      x-codegen-request-body-name: payload
+  '/OAuth2/EndSession/{app_id}':
+    post:
+      tags:
+        - OAuth & OpenID Connect
+      summary: End user session
+      description: '<li>This API is used to destroy an OIDC session through RP-initiated logout with the option to redirect users to a pre-determined URL.</li> <li>A post_logout_redirect_uri may be specified to redirect the browser after the logout is performed.  The post_logout_uri sent in the request should be part of the authorized logout URIs list configured at authorization server.</li> <li>Refer guide <a href="https://identity-developer.cyberark.com/docs/end-openid-connect-session-on-cyberark-identity">here</a> for more information</li>'
+      parameters:
+        - name: post_logout_redirect_uri
+          in: query
+          description: The redirect URI to which the user will be redirected to after logout from CyberArk Identity.
+          schema:
+            type: string
+        - name: state
+          in: query
+          description: An optional value that is returned as a query parameter during the redirect to the post_logout_redirect_uri. The value can be used by the client application to validate the redirect.
+          schema:
+            type: string
+        - name: id_token_hint
+          in: query
+          description: An optional value where a valid Id token should be passed with a subject that matches the current session. Its recommended when requesting post-logout redirection.
+          schema:
+            type: string
+        - name: app_id
+          in: path
+          description: The application ID of the Open ID connect custom web app
+          required: true
+          schema:
+            type: string
+      responses:
+        '302':
+          description: API-Result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OAuth2EndSession'
+      security:
+        - bearerAuth: []
+      servers:
+        - url: 'https://{tenant_url}/'
+          variables:
+            tenant_url:
+              default: example.id.cyberark.cloud
+      x-idap-anon: true
+tags:
+  - name: Login
+    description: SignIn APIs
+  - name: Logout
+    description: SignOut APIs
+  - name: OAuth & OpenID Connect
+    description: OAuth and OpenID Connect related operations
+  - name: Progressive Password Migration
+    description: APIs related to progressive password migration
+  - name: Additional APIs
+    description: Additional APIs
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    basicAuth:
+      type: http
+      scheme: basic
+  schemas:
+    SecurityStartAuthentication:
+      type: object
+      properties:
+        success: 
+          type: boolean
+        Result: 
+          type: object
+          properties: 
+            ClientHints: 
+              type: object
+              properties: 
+                PersistDefault: 
+                  type: boolean
+                AllowPersist: 
+                  type: boolean
+                AllowForgotPassword: 
+                  type: boolean
+                EndpointAuthenticationEnabled: 
+                  type: boolean
+            Version: 
+              type: string
+            SessionId: 
+              type: string
+            EventDescription: 
+              type: string
+              format: nullable
+            RetryWaitingTime: 
+              type: integer
+              format: int32
+            SecurityImageName: 
+              type: string
+              format: nullable
+            AllowLoginMfaCache: 
+              type: boolean
+            Challenges: 
+              type: array
+              items: 
+                type: object
+                properties: 
+                  Mechanisms: 
+                    type: array
+                    items: 
+                      type: object
+                      properties: 
+                        AnswerType: 
+                          type: string
+                        Name: 
+                          type: string
+                        PromptMechChosen: 
+                          type: string
+                        PromptSelectMech: 
+                          type: string
+                        MechanismId: 
+                          type: string
+                        Enrolled: 
+                          type: boolean
+            Summary: 
+              type: string
+            TenantId: 
+              type: string
+        Message: 
+          type: string
+          format: nullable
+        MessageID: 
+          type: string
+          format: nullable
+        Exception: 
+          type: string
+          format: nullable
+        ErrorID: 
+          type: string
+          format: nullable
+        ErrorCode: 
+          type: string
+          format: nullable
+        IsSoftError: 
+          type: boolean
+        InnerExceptions: 
+          type: string
+          format: nullable
+    SecurityAdvanceAuthentication:
+      type: object
+      properties:
+        success: 
+          type: boolean
+        Result: 
+          type: object
+          properties: 
+            AuthLevel: 
+              type: string
+            DisplayName: 
+              type: string
+            Token: 
+              type: string
+            Auth: 
+              type: string
+            UserId: 
+              type: string
+            EmailAddress: 
+              type: string
+            UserDirectory: 
+              type: string
+            PodFqdn: 
+              type: string
+            User: 
+              type: string
+            CustomerID: 
+              type: string
+            SystemID: 
+              type: string
+            SourceDsType: 
+              type: string
+            Summary: 
+              type: string
+        Message: 
+          type: string
+          format: nullable
+        MessageID: 
+          type: string
+          format: nullable
+        Exception: 
+          type: string
+          format: nullable
+        ErrorID: 
+          type: string
+          format: nullable
+        ErrorCode: 
+          type: string
+          format: nullable
+        IsSoftError: 
+          type: boolean
+        InnerExceptions: 
+          type: string
+          format: nullable      
+    SecurityChallengeUser:
+      type: object
+      properties:
+        Result:
+          type: object
+          description: Below is the response structure if the API request is successful.
+          properties:
+            ErrorID:
+              type: string
+              description: ErrorID
+            ErrorCode:
+              type: string
+              description: ErrorID
+            MessageID:
+              type: string
+              description: MessageID
+            Result:
+              type: object
+              description: 'The result received from the Identity cloud. '
+              properties:
+                ChallengeId:
+                  type: string
+                  description: 'This is a random generated ID that is used to identify the challenge (Authentication profile) uniquely.  '
+            InnerExceptions:
+              type: string
+              description: ErrorID
+            Message:
+              type: string
+              description: Message
+            success:
+              type: boolean
+              description: 'Success '
+            IsSoftError:
+              type: string
+              description: ErrorID
+        Error:
+          type: object
+          description: Below is the list of errors received by the API.
+          properties:
+            AuthCookie:
+              type: string
+              description: AThreadDescriptor AuthCookie is null
+            InvalidProfileName:
+              type: string
+              description: The profile name cannot be identified by the CyberArk Identity.
+            InvalidArguments:
+              type: string
+              description: 'Invalid arguments passed to the server. '
+            NullArguments:
+              type: string
+              description: Unexpected null arguments passed to the server.
+    SecurityStartChallenge:
+      type: object
+      properties:
+        Result:
+          type: object
+          description: 'The below is the response received from the CyberArk Identity when the request to the API is successful. '
+          properties:
+            success:
+              type: boolean
+              description: success
+            MessageID:
+              type: string
+              description: MessageID
+            EventDescription:
+              type: string
+              description: EventDescription
+            TenantId:
+              type: string
+              description: 'The ID of the tenant to which the user is logging in. If this field is not provided, the username must identify the tenant. Ex: abc-123 '
+            Challenges:
+              type: object
+              description: The challenges consist of an array of MFA mechanisms out of which at least one MFA mechanism should be satisfied by the user to proceed further.
+              properties:
+                Mechanisms:
+                  type: object
+                  description: The list of MFA mechanisms that a user should select and respond
+                  properties:
+                    PromptSelectMech:
+                      type: string
+                      description: "Prompt for the selected mechanism. Ex: If the selected mechanism is Password then then this field would have the value \x93Password\x94 on the UI. "
+                    PromptMechChosen:
+                      type: string
+                      description: "Prompt for the chosen mechanism. Ex: If the chosen mechanism is Password then then this field would have the value \x93Enter password\x94 on the UI. "
+                    MechanismId:
+                      type: string
+                      description: 'This is a random generated ID that is used to identify the mechanism uniquely. This ID is provided in the request body for advance authentication API. '
+                    AnwerType:
+                      type: string
+                      description: "The answer type for the given mechanism. Ex: If the mechanism is password, \x93AnswerType\x94 would be \x93Answer\x94 and If the mechanism is email, \x93AnswerType\x94 would be \x93startOOB\x94"
+                    Name:
+                      type: string
+                      description: "The name of the MFA mechanism Ex: The name of the password mechanism is \x93UP\x94"
+            Exception:
+              type: string
+              description: Exception
+            Version:
+              type: string
+              description: 'Version of the API Ex: v1.0 '
+            Message:
+              type: string
+              description: Message
+            AllowLoginMfaCache:
+              type: boolean
+              description: Allows login MFA cache
+            ErrorID:
+              type: string
+              description: ErrorID
+            InnerExceptions:
+              type: string
+              description: InnerExceptions
+            SessionId:
+              type: string
+              description: 'This is a random generated ID that is used to identify the user session uniquely. This ID is provided in the request body for advance authentication API. '
+            ErrorCode:
+              type: string
+              description: ErrorCode
+            RetryWaitingTime:
+              type: integer
+              format: uint64
+              description: Retry waiting time
+            Summary:
+              type: string
+              description: Summary
+            IsSoftError:
+              type: string
+              description: IsSoftError
+            ClientHints:
+              type: object
+              description: These client hints are displayed on the login form to the user.
+              properties:
+                AllowPersist:
+                  type: boolean
+                  description: Allow Persistent cookies
+                PersistDefault:
+                  type: boolean
+                  description: Persist Default
+                AllowForgotPassword:
+                  type: boolean
+                  description: This Boolean flag specifies whether the user should be displayed with forgot password link
+                EndpointAuthenticationEnabled:
+                  type: boolean
+                  description: 'This Boolean flag specifies whether the endpoint authentication is enabled for the user. '
+        Error:
+          type: object
+          description: 'Error message text on failure, may be null'
+    SecurityAnswerOOBChallenge:
+      type: object
+      properties:
+        Result:
+          type: object
+          description: Redirect to answer challenge page.
+        Error:
+          type: object
+          description: 'Error message text on failure, may be null'
+    SecuritySubmitOathOtpCode:
+      type: object
+      properties:
+        Result:
+          type: object
+          description: Standard JSON response.
+        Error:
+          type: object
+          description: 'Error message text on failure, may be null'
+    SecuritySubmitQRCode:
+      type: object
+      properties:
+        Result:
+          type: object
+          description: Standard JSON response.
+        Error:
+          type: object
+          description: 'Error message text on failure, may be null'
+    U2fAnswerRegistrationChallenge:
+      type: object
+      properties:
+        Result:
+          type: object
+          description: Standard JSON response.
+        Error:
+          type: object
+          description: Standard JSON response.
+    SecurityStartForgotUsername:
+      type: object
+      properties:
+        Result:
+          type: object
+          description: Return object for a successful API call
+          properties:
+            ErrorID:
+              type: string
+              description: 'Error ID if any error is received from the API. By default, it is ''null'''
+            ErrorCode:
+              type: string
+              description: 'Error code if any error is received from the API. By default, it is ''null'''
+            Exception:
+              type: string
+              description: 'Exception message if an exception is received from the API. By default, it is ''null'''
+            MessageID:
+              type: string
+              description: Message Id for failure response. By default it is 'null'
+            Result:
+              type: object
+              description: An Authentication package to guide client through the Forgot Username MFA proces
+              properties:
+                TenantId:
+                  type: string
+                  description: 'The ID of the tenant to which the user is logging in. If this field is not provided, the username must identify the tenant. Ex: ABC-123'
+                Challenges:
+                  type: object
+                  description: The challenges consist of an array of MFA mechanisms out of which at least one MFA mechanism should be satisfied by the user to proceed further
+                  properties:
+                    Mechanisms:
+                      type: object
+                      description: The list of MFA mechanisms that a user should select and respond
+                      properties:
+                        ServiceName:
+                          type: string
+                          description: Name of the following endpoint to invoke to advance the process and send the user an email with their username
+                        MechanismId:
+                          type: string
+                          description: This is a randomly generated ID that is used to identify the mechanism uniquely. This ID is provided in the request body for advance forgot username API
+                        AnwerType:
+                          type: string
+                          description: 'The answer type for the given mechanism. Ex: If the mechanism is the password, AnswerType would be Text'
+                        Name:
+                          type: string
+                          description: The name of the MFA mechanism specifying the information the user needs to provide
+                Version:
+                  type: string
+                  description: 'Version of the API Ex: v1.0'
+                AllowLoginMfaCache:
+                  type: boolean
+                  description: Boolean flag indicating if login MFA cache allowed or not
+                SessionId:
+                  type: string
+                  description: This is a randomly generated ID used to identify the user session uniquely. This ID is provided in the request body for advance authentication API
+                RetryWaitingTime:
+                  type: integer
+                  format: uint64
+                  description: Time limit after which API can be tried again
+                ClientHints:
+                  type: object
+                  description: These client hints are displayed on the login form to the user
+                  properties:
+                    AllowPersist:
+                      type: boolean
+                      description: Allow Persistent cookies
+                    PersistDefault:
+                      type: boolean
+                      description: Persist Default
+                    AllowForgotPassword:
+                      type: boolean
+                      description: This Boolean flag specifies whether the user should be displayed with forgot password link
+                    EndpointAuthenticationEnabled:
+                      type: boolean
+                      description: This Boolean flag specifies whether the endpoint authentication is enabled for the user
+                Summary:
+                  type: string
+                  description: Summary of the result
+                EventDescription:
+                  type: string
+                  description: EventDescription
+            InnerExceptions:
+              type: string
+              description: 'Inner Exceptions if any received from the API. By default, it is ''null'''
+            Message:
+              type: string
+              description: Error message for failure response. By default it is 'null'
+            success:
+              type: boolean
+              description: It will be true for a successful API call
+            IsSoftError:
+              type: boolean
+              description: SoftError if true indicates this is not an exception but a UI warning popup
+        Error:
+          type: object
+          description: 'Error message text on failure, below message, would be returned if payload key version provided is invalid/empty'
+          properties:
+            EmptyVersion:
+              type: string
+              description: Authentication (login or challenge) has failed. Please try again or contact your system administrator.
+            InvalidVersion:
+              type: string
+              description: Authentication (login or challenge) has failed. Please try again or contact your system administrator.
+    SecurityAdvanceForgotUsername:
+      type: object
+      properties:
+        Result:
+          type: object
+          description: Return object for a successful API call
+          properties:
+            ErrorID:
+              type: string
+              description: 'Error ID if any error is received from the API. By default, it is ''null'''
+            ErrorCode:
+              type: string
+              description: 'Error code if any error is received from the API. By default, it is ''null'''
+            Exception:
+              type: string
+              description: 'Exception message if an exception is received from the API. By default, it is ''null'''
+            MessageID:
+              type: string
+              description: Message Id for failure response. By default it is 'null'
+            Result:
+              type: object
+              description: Information about action taken (username has been sent to provided email address)
+              properties:
+                ClientMessage:
+                  type: string
+                  description: Information that an email with your username has been sent to the email address provided in request body
+                Summary:
+                  type: string
+                  description: Result summary
+            InnerExceptions:
+              type: string
+              description: 'Inner Exceptions if any received from the API. By default, it is ''null'''
+            Message:
+              type: string
+              description: Error message for failure response. By default it is 'null'
+            success:
+              type: boolean
+              description: It will be true for a successful API call
+            IsSoftError:
+              type: boolean
+              description: SoftError if true indicates this is not an exception but a UI warning popup
+        Error:
+          type: object
+          description: 'Error message text on failure, below message would be returned if provided body arguments are empty/invalid'
+          properties:
+            ErrorMessage:
+              type: string
+              description: Authentication (login or challenge) has failed. Please try again or contact your system administrator.
+    SecurityLogout:
+      type: object
+      properties:
+        Result:
+          type: object
+          description: Return object for a successful API call.
+          properties:
+            ErrorID:
+              type: string
+              description: Error ID if any error is received from the API. By default it is 'null'
+            ErrorCode:
+              type: string
+              description: Error code if any error is received from the API. By default it is 'null'
+            Exception:
+              type: string
+              description: Exception message if any exception is received from the API. By default it is 'null'
+            MessageID:
+              type: string
+              description: Message Id for failure response. By default it is 'null'
+            Result:
+              type: string
+              description: The result for the API call.
+            InnerExceptions:
+              type: string
+              description: InnerExceptions
+            Message:
+              type: string
+              description: Error message for failure response. By default it is 'null'
+            success:
+              type: boolean
+              description: It will be true for a successful API call.
+            IsSoftError:
+              type: boolean
+              description: SoftError if true indicates this is not actually an exception but an UI warning popup.
+        Error:
+          type: object
+          description: 'Error message text on failure, may be null'
+    SecurityStartSocialAuthentication:
+      type: object
+      properties:
+        Result:
+          type: object
+          description: Provides status whether social authentication started or not
+          properties:
+            ErrorID:
+              type: string
+              description: ErrorID
+            ErrorCode:
+              type: string
+              description: ErrorID
+            MessageID:
+              type: string
+              description: MessageID
+            Result:
+              type: object
+              description: Result
+              properties:
+                Status:
+                  type: string
+                  description: Status of the endpoint
+                IdpRedirectUrl:
+                  type: string
+                  description: Idp Redirect Url
+            InnerExceptions:
+              type: string
+              description: ErrorID
+            Message:
+              type: string
+              description: Message
+            success:
+              type: boolean
+              description: success
+            IsSoftError:
+              type: string
+              description: ErrorID
+        Error:
+          type: object
+          description: Error message text on failure
+          properties:
+            UnknownIdp:
+              type: string
+              description: Encountered unexpected error and could not process authentication request.
+            InvalidURI:
+              type: string
+              description: Redirect URI found in the request is not trusted or valid.
+    SecurityStartQRCodeAuthentication:
+      type: object
+      properties:
+        Result:
+          type: object
+          description: Login success (or error) message or an Authentication package to guide client through the MFA process.
+        Error:
+          type: object
+          description: 'Error message text on failure, may be null'
+    UserMgmtSignOutCurrentSession:
+      type: object
+      properties:
+        Result:
+          type: object
+          description: Return object for a successful API call.
+          properties:
+            ErrorID:
+              type: string
+              description: Error ID if any error is received from the API. By default it is 'null'
+            ErrorCode:
+              type: string
+              description: Error code if any error is received from the API. By default it is 'null'
+            Exception:
+              type: string
+              description: Exception message if any exception is received from the API. By default it is 'null'
+            MessageID:
+              type: string
+              description: Message Id for failure response. By default it is 'null'
+            Result:
+              type: string
+              description: The result for the API call.
+            InnerExceptions:
+              type: string
+              description: InnerExceptions
+            Message:
+              type: string
+              description: Error message for failure response. By default it is 'null'
+            success:
+              type: boolean
+              description: It will be true for a successful API call.
+            IsSoftError:
+              type: boolean
+              description: SoftError if true indicates this is not actually an exception but an UI warning popup.
+        Error:
+          type: object
+          description: Error message text on failure.
+          properties:
+            Unauthorized:
+              type: string
+              description: 'This error message is displayed when there some error occurred. Error message: ''Please try again or contact your system administrator for assistance.'''
+    UserMgmtSignOutEverywhere:
+      type: object
+      properties:
+        Result:
+          type: object
+          description: Return object for a successful API call.
+          properties:
+            ErrorID:
+              type: string
+              description: Error ID if any error is received from the API. By default it is 'null'
+            ErrorCode:
+              type: string
+              description: Error code if any error is received from the API. By default it is 'null'
+            Exception:
+              type: string
+              description: Exception message if any exception is received from the API. By default it is 'null'
+            MessageID:
+              type: string
+              description: Message Id for failure response. By default it is 'null'
+            Result:
+              type: string
+              description: The result for the API call.
+            InnerExceptions:
+              type: string
+              description: InnerExceptions
+            Message:
+              type: string
+              description: Error message for failure response. By default it is 'null'
+            success:
+              type: boolean
+              description: It will be true for a successful API call.
+            IsSoftError:
+              type: boolean
+              description: SoftError if true indicates this is not actually an exception but an UI warning popup.
+        Error:
+          type: object
+          description: Error message text on failure.
+          properties:
+            UnAuthorized:
+              type: string
+              description: 'This error message is displayed when the invalid user Id is provided or when user does not have sufficient rights. Error message: ''You are not authorized to perform this operation. Please contact your IT helpdesk.'''
+    OAuth2GetMeta:
+      type: object
+      properties:
+        Result:
+          type: object
+          description: 'The API response contains the <a href="https://identity-developer.cyberark.com/docs/about-openid-connect#openid-connect-metadata">  OpenID connect provider metadata </a>. the OP metadata can be requested using <tenant_url>/<application_id>/.well-known/openid-configuration.'
+    OAuth2GetMeta_400_errors:
+      type: object
+      properties:
+        Result:
+          type: object
+          description: The API response when invalid request is sent to the server.
+          properties:
+            Application ID incorrect:
+              type: string
+              description: |
+                The error is observed if application ID is not sent or if incorrect value is sent as the query parameter.
+
+                   <b>Example:</b>
+                   "error": "invalid_request",
+                   "error_description": "unknown app"
+    OAuth2Keys:
+      type: object
+      properties:
+        Result:
+          type: array
+          description: The JWT keys used to sign the ID and the access tokens.   These keys should be used by the client application to verify the signature of the tokens.
+          items:
+            type: object
+            properties:
+              kty:
+                type: string
+                description: The type of JWT key.
+              alg:
+                type: string
+                description: The algorithm of the key.
+              use:
+                type: string
+                description: The use of key.
+              kid:
+                type: string
+                description: The thumbprint of key.
+    OAuth2Keys_400_errors:
+      type: object
+      properties:
+        Result:
+          type: object
+          description: The API response when invalid request is sent to the server.
+          properties:
+            Invalid application ID:
+              type: string
+              description: |
+                The error is seen when the application ID sent in the API request is incorrect.
+
+                   <b>Example:</b>
+                   "error": "invalid_request",
+                   "error_description": "unknown app 123"
+            Invalid request:
+              type: string
+              description: |
+                The error is when the API URL doesn't have application ID as part of it. ex: {tenant_url}/OAuth2/Keys
+
+                   <b>Example:</b>
+                   "error": "invalid_request",
+                   "error_description": "bad URL"
+                   
+    OAuth2Authorize_authenticatedResponse:
+      type: object
+      properties:
+        Result:
+          type: object
+          description: 'The API response when user is authenticated. <b>Note:</b> The API response varies based on the response type. For more information refer  <a href="https://identity-developer.cyberark.com/docs/about-openid-connect">OpenID Connect</a>. Note: The response is an HTML response.'
+          properties:
+            authenticated_response:
+              type: string
+              description: |
+                If the user is authenticated, then the user is redirected to the redirect URI along with the authorization code or tokens.
+                <b> Example: </b>
+
+                If response type is 'code' then the response is as below:
+                Object moved to <redirect_uri>?state=abc&amp;responseType=code&amp;code=fBkN...   
+
+                If the response type is 'code token' then the response is as below:
+                Object moved to <redirect_uri>#state=abc&amp;responseType=code%2C%20token&amp;code=Cfp2...&amp;access_token=eyJhb...&amp;token_type=Bearer&amp;expires_in=18000&amp;scope=openid%20profile"
+    OAuth2Authorize_unauthenticatedResponse:
+      type: object
+      properties:
+        Result:
+          type: object
+          description: 'The API response when user is not authenticated. Note: The response is an HTML response.'
+          properties:
+            unauthenticated_response:
+              type: string
+              description: |
+                If the user is not authenticated, then response contains HTML with a
+                bounce URL to a login page where user needs to provide credentials for
+                authentication.
+
+                <b>Example:</b>
+                Object moved to "/login?cloudRedirect=Oauth2%2FAuthorize%2Ftest%3Fbounce%3D_aY04VXKTVO1mUsK5RZt55o2y5i52HpHgyt4cQmh0qA1"  
+    OAuth2Authorize_302_errors:
+      type: object
+      properties:
+        Result:
+          type: object
+          description: 'The API response when invalid authorization request is sent to the server. Note: The response is an HTML response.'
+          properties:
+            Invalid client ID:
+              type: string
+              description: |
+                The client ID sent in the authorization request is invalid.
+
+                 <b>Example :</b>
+                Object moved to <redirect_uri>?error=invalid_client&amp;error_description=invalid%20client%20creds
+            Unknown scopes requested:
+              type: string
+              description: |
+                The scopes sent in the authorization request are not part of authorized scopes.
+
+                <b>Example:</b> 
+                Object moved to <redirect_uri>/v1/callback?error=invalid_scope&amp;error_description=unknown%20scope%20requested            
+            Unknown application ID:
+              type: string
+              description: |
+                The scopes sent in the authorization request are not part of authorized scopes.
+
+                <b>Example:</b>
+                Object moved to <redirect_uri>?error=invalid_request&amp;error_description=unknown%20app%20123
+    OAuth2Authorize_400_errors:
+      type: object
+      properties:
+        Result:
+          type: object
+          description: The API response when invalid authorization request is sent to the server.
+          properties:
+            Invalid redirect URI:
+              type: string
+              description: |
+                The redirect URI sent in the request is not part of the authorized redirect URI list.
+
+                   <b>Example:</b>
+                   "error": "invalid_request",
+                   "error_description": "invalid redirect"
+            Invalid response type:
+              type: string
+              description: |
+                The response type sent in the authorization request is invalid.
+
+                   <b>Example:</b>
+                   "error": "unsupported_response_type",
+                   "error_description": "invalid response_type: id"
+            Invalid prompt:
+              type: string
+              description: |
+                The prompt parameter sent in the authorization request is not supported by CyberArk Identity,
+
+                   <b>Example:</b>
+                   "error": "unsupported_prompt",
+                   "error_description": "Unsupported prompt value: 'consent'.  Supported prompt values: 'none' and 'login'."
+    OAuth2Authorize_500_errors:
+      type: object
+      properties:
+        Result:
+          type: object
+          description: The API response when authorization request is sent to the server.
+          properties:
+            Incorrect redirect URI format:
+              type: string
+              description: |
+                The redirect URI sent in the authorization request is not in the correct HTTPS format Ex: redirect URI is of the format 'abc'.
+
+                 <b>Example:</b>
+                 "error": "invalid_request",
+                 "error_description": "Invalid URI: The format of the URI could not be determined."  
+            Response type missing:
+              type: string
+              description: |
+                The response type is not sent in the authorization request.
+
+                 <b>Example:</b>
+                 "error": "invalid_request",
+                 "error_description": "missing response_type"           
+    OAuth2Confirm:
+      type: object
+      properties:
+        Consent:
+          type: string
+          description: |
+            The user will be redirected to the redirect URI after the user consent is saved.
+
+            <b> Example: </b>
+
+            If the user has denied the consent the redirect URI will be <redirect_uri>?error=access_denied&error_description=User%20denied%20confirmation
+
+            On approving the consent, the user will be redirected to the redirect URI with authorization code or tokens depending on response_type
+            Ex: <redirect_uri>?state=123abc&responseType=code&code=yovIWA...
+    Unauthorized_user_error:
+      type: object
+      properties:
+        Result:
+          type: object
+          description: The API response when invalid request is sent to the server.
+          properties:
+            Unauthorized user:
+              type: string
+              description: |
+                The user is not an authorized user. Either the user has not logged in or the user doesn't have rights to perform the request.
+
+                <b>Example:</b>
+                "error_message": "You do not have access to this content. Please contact your system administrator for assistance."  
+    OAuth2Confirm_500_errors:
+      type: object
+      properties:
+        Result:
+          type: object
+          description: The API response when invalid request is sent to the server.
+          properties:
+            Incorrect bounce value:
+              type: string
+              description: |
+                The bounce value sent in the request is incorrect.
+
+                 <b>Example:</b>
+                 "error": "500",
+                 "error_description": "State not found for type OAuthBounce, key oRun..."  
+            Bounce parameter missing:
+              type: string
+              description: |
+                The bounce value is not sent in the authorization request.
+
+                 "error": "500",
+                 "error_description": "String reference not set to an instance of a String.\r\nParameter name: s"           
+    OAuth2Token:
+      type: object
+      properties:
+        Result:
+          type: object
+          description: The API response for a successful API request.
+          properties:
+            expires_in:
+              type: integer
+              description: The expiry date of the access and ID tokens
+            scope:
+              type: string
+              description: The scopes of the token. These scopes are sent in the authorization request.
+            access_token:
+              type: string
+              description: Access token that defines the client applications access to protected resources.
+            token_type:
+              type: string
+              description: The type of token.
+            id_token:
+              type: string
+              description: The ID token that gives claims information of the user
+            refresh_token:
+              type: string
+              description: The refresh token can be used to generate new access tokens.
+            state:
+              type: string
+              description: The client should use the content of this parameter to make sure the Code it received matches the authorization request it sent.
+    OAuth2Token_400_errors:
+      type: object
+      properties:
+        Result:
+          type: object
+          description: The API response when invalid request is sent to the server.
+          properties:
+            Invalid client ID:
+              type: string
+              description: |
+                The error is seen when the client ID is missing in the API request.
+
+                   <b>Example:</b>
+                   "error": "invalid_client",
+                   "error_description": "wrong clientid"
+            Invalid authorization code:
+              type: string
+              description: |
+                The error is seen when the authorization code sent in the API request is invalid.
+
+                   <b>Example:</b>
+                   "error": "invalid_grant",
+                   "error_description": "supplied code does not match known request"
+            Invalid grant type:
+              type: string
+              description: |
+                The error is seen when the grant type is invalid.
+
+                   <b>Example:</b>
+                   "error": "invalid_grant",
+                   "error_description": "invalid grant type"
+            Mismatched redirect URI:
+              type: string
+              description: |
+                The error is seen when the redirect URI sent in the token request is not part of the authorized redirects.
+
+                   <b>Example:</b>
+                   "error": "invalid_request",
+                   "error_description": "mismatched redirect"
+                   
+    OAuth2UserInfo:
+      type: object
+      properties:
+        Result:
+          type: object
+          description: Successful API response
+          properties:
+            aud:
+              type: string
+              description: Audience of the token
+            unique_name:
+              type: string
+              description: unique name of the user
+            email_verified:
+              type: boolean
+              description: A boolean flag that specifies if the users email is verified or not.
+            given_name:
+              type: integer
+              description: Given name of the user
+            family_name:
+              type: string
+              description: Family name of the user.
+            email:
+              type: string
+              description: Email of the user
+            name:
+              type: string
+              description: User name
+            auth_time:
+              type: string
+              description: The time at which the user is authenticated
+            Success:
+              type: boolean
+              description: A boolean flag that specifies if the API request is successful or not
+            preferred_username:
+              type: string
+              description: Preferred user name
+            sub:
+              type: string
+              description: 'Subject Identifier. A locally unique and never reassigned identifier within the issuer for the End-User, which is intended to be consumed by the client'
+    OAuth2UserInfo_400_errors:
+      type: object
+      properties:
+        Result:
+          type: object
+          description: The API response when invalid request is sent to the server.
+          properties:
+            Invalid application ID:
+              type: string
+              description: |
+                The error is seen when the application ID sent is invalid in the API request.
+
+                   <b>Example:</b>
+                   "error": "invalid_request",
+                   "error_description": "unknown app 123"
+            Invalid application configuration:
+              type: string
+              description: |
+                The error is seen when the application ID is missing in the API request.
+
+                   <b>Example:</b>
+                   "error": "invalid_request",
+                   "error_description": "invalid app configuration"
+            Invalid URL:
+              type: string
+              description: |
+                The error is seen when the API request URL is incorrect.
+
+                   <b>Example:</b>
+                   "error": "invalid_request",
+                   "error_description": "bad url"
+                   
+    OAuth2Introspect_tokenActive:
+      type: object
+      properties:
+        Result:
+          type: object
+          description: 'The API response when the token is active. Please refer to <a href="https://identity-developer.cyberark.com/docs/tokens">  https://identity-developer.cyberark.com/docs/tokens </a> for more information on the response fields.'
+          properties:
+            scope:
+              type: string
+              description: A space-delimited list of scopes.
+            exp:
+              type: string
+              description: The expiration time of the token in seconds.
+            active:
+              type: boolean
+              description: The active field in the response indicates if the token is currently active or not. Value is true
+            sub:
+              type: string
+              description: The subject of the token.
+            aud:
+              type: string
+              description: The audience of the token.
+            auth_time:
+              type: string
+              description: It is the time in seconds when authentication was made.
+            app_id:
+              type: string
+              description: It is the unique id of the application configured.
+            iss:
+              type: string
+              description: The issuer of the token.
+            iat:
+              type: string
+              description: The issuing time of the token in seconds.
+            unique_name:
+              type: string
+              description: It is the username or client id.
+    OAuth2Introspect_tokenInactive:
+      type: object
+      properties:
+        Result:
+          type: object
+          description: The API response when the token is inactive.
+          properties:
+            active:
+              type: boolean
+              description: The active field in the response indicates if the token is currently active or not. Value is false.
+    OAuth2Introspect_400_errors:
+      type: object
+      properties:
+        Result:
+          type: object
+          description: The API response when invalid request is sent to the server.
+          properties:
+            Unauthenticated request:
+              type: string
+              description: |
+                The error is seen when the user who sent the API request is not authenticated.
+
+                   <b>Example:</b>
+                   "error": "access_denied",
+                   "error_description": "requesting user not authenticated"
+            Invalid application ID:
+              type: string
+              description: |
+                The error is seen when the application ID sent in the API request is incorrect.
+
+                   <b>Example:</b>
+                   "error": "invalid_request",
+                   "error_description": "unknown app 123"
+            Missing token:
+              type: string
+              description: |
+                The error is seen when the token is not sent in the API request.
+
+                   <b>Example:</b>
+                   "error": "invalid_request",
+                   "error_description": "missing token in request"
+                   
+    OAuth2Revoke:
+      type: object
+      properties:
+        Result:
+          type: string
+          description: 'The authorization server responds with HTTP status code 200 if the token has been revoked successfully or the client submitted an invalid token.  Note: invalid tokens do not cause an error response since the client cannot reasonably handle such an error.  Moreover, the purpose of the revocation request, invalidating the particular token, is already achieved.'
+    OAuth2Revoke_400_errors:
+      type: object
+      properties:
+        Result:
+          type: object
+          description: The API response when invalid request is sent to the server.
+          properties:
+            Missing token:
+              type: string
+              description: |
+                The error is seen token is missing in the API request.
+
+                   <b>Example:</b>
+                   "error": "invalid_request",
+                   "error_description": "missing token"
+                   
+    OAuth2EndSession:
+      type: object
+      properties:
+        Result:
+          type: string
+          description: The user will be redirected to the post logout URI along with the state query parameter if specified. Else the user is redirected to the user portal
+security:
+  - bearerAuth: []

@@ -1,0 +1,13 @@
+# Node (this is not a node project, but node tools may be used)
+node_modules/
+package-lock.json
+package.json
+
+*.log
+.vscode/* 
+*~
+bin/
+**/Archive
+
+# Ignore Generated Files
+api/identity-combined.yaml
