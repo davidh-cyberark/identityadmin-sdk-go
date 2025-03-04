@@ -1,6 +1,6 @@
 # openapi.makefile
 
-# Updated: <2025/02/26 17:06:25>
+# Updated: <2025/03/03 20:13:41>
 
 .PHONY: scripts/openapi.makefile 
 include scripts/go.makefile
@@ -8,10 +8,13 @@ include scripts/npm.makefile
 
 #####
 # Redocly - for linting and generating docs
-REDOCLY_CLI := $(NPM) exec -- @redocly/cli
+# REDOCLY_CLI := $(NPM) exec -- @redocly/cli
+REDOCLY_CLI := $(NPMBINRELDIR)/redocly
 
 .PHONY: redocly-cli
-redocly-cli: | npm-installed  ## install redocly-cli - for linting and generating docs
+redocly-cli: $(REDOCLY_CLI)  ## install redocly-cli - for linting and generating docs
+
+$(REDOCLY_CLI): | npm-installed  ## check if redocly-cli is installed
 	$(NPM) list @redocly/cli@latest >/dev/null || $(NPM) install @redocly/cli@latest
 
 redocly-cli-uninstall: | npm-installed  ## uninstall redocly-cli
@@ -40,4 +43,5 @@ distclean::
 
 vardump::
 	@echo "openapi.makefile: REDOCLY_CLI: $(REDOCLY_CLI)"
+	@echo "openapi.makefile: REDOCLY_CLI version: $(shell $(REDOCLY_CLI) --version)"
 	@echo "openapi.makefile: OAPI_CODEGEN: $(OAPI_CODEGEN)"

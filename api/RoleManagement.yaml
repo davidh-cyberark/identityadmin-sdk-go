@@ -11,6 +11,7 @@ servers:
 paths:
   /Roles/StoreRole:
     post:
+      operationId: PostRolesStoreRole
       tags:
         - Role Management
       summary: Create Role
@@ -736,7 +737,7 @@ components:
           type: object
           description: The result for the API call.
           properties:
-            Rowkey:
+            _Rowkey:
               type: string
               description: Unique Id of the Role
         Message:

@@ -1,11 +1,16 @@
 # npm.makefile
 
-# Updated: <2025/02/24 21:12:02>
+# Updated: <2025/03/03 20:13:35>
 
 .PHONY: scripts/npm.makefile
 
 NPM := $(shell command -v npm 2> /dev/null)
-NPMDIR := $(shell npm root)
+
+NPMBINSUBDIR := .bin
+NPMROOTDIR := $(shell npm root)
+NPMBINDIR := $(NPMROOTDIR)/$(NPMBINSUBDIR)
+NPMBINRELDIR := ./$(shell basename "$(NPMROOTDIR)")/$(NPMBINSUBDIR)
+
 
 npm-installed:
 ifndef NPM
@@ -15,4 +20,6 @@ endif
 .PHONY: vardump
 vardump::
 	@echo "npm.makefile: NPM: $(NPM)"
-	@echo "npm.makefile: NPMDIR: $(NPMDIR)"
+	@echo "npm.makefile: NPMROOTDIR: $(NPMROOTDIR)"
+	@echo "npm.makefile: NPMBINDIR: $(NPMBINDIR)"
+	@echo "npm.makefile: NPMBINRELDIR: $(NPMBINRELDIR)"

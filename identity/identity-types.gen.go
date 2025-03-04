@@ -798,7 +798,7 @@ type RolesStoreRole struct {
 	// Result The result for the API call.
 	Result *struct {
 		// Rowkey Unique Id of the Role
-		Rowkey *string `json:"Rowkey,omitempty"`
+		Rowkey *string `json:"_Rowkey,omitempty"`
 	} `json:"Result,omitempty"`
 
 	// Success It will be true for a successful API call.
