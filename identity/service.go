@@ -17,7 +17,7 @@ func (k *contextKey) String() string {
 
 var (
 	ServiceKey = &contextKey{"IdentityService"}
-	HeadersKey = &contextKey{"RequestHeaders"}
+	HeadersKey = &contextKey{"IdentityRequestHeaders"}
 )
 
 type Service struct {
@@ -46,10 +46,12 @@ func NewService(ctx context.Context, idtenanturl string, opts ...ServiceOption) 
 		}
 		service.Client = clientWithResponses
 	}
+
 	// no logger set, so discard logs
 	if service.Logger == nil {
 		service.Logger = log.New(io.Discard, "", 0)
 	}
+
 	return service, nil
 }
 
@@ -86,7 +88,7 @@ func (s *Service) CreateRole(ctx context.Context, reqCreateRole *PostRolesStoreR
 	ctx = context.WithValue(ctx, HeadersKey, headers)
 	roleResp, err := s.Client.PostRolesStoreRoleWithResponse(ctx, *reqCreateRole,
 		AddRequestHeaders,
-		s.AuthnProvider.UpdateRequestWithToken,
+		s.AuthnProvider.AuthenticateRequest,
 	)
 	if err != nil {
 		return nil, err

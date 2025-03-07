@@ -6,13 +6,23 @@ import (
 	"net/http"
 )
 
-type UserCredentialsProvider struct {
+type UserCredentials struct {
 	User string
 	Pass string
 }
 
+// UpdateRequestWithToken modifies the request with the session token; implements the AuthenticationProvider interface
+func (uc *UserCredentials) AuthenticateRequest(ctx context.Context, req *http.Request) error {
+	tok, err := GetTokenWithUserCredentials(ctx, uc)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Authorization", "Bearer "+tok)
+	return nil
+}
+
 // RefreshToken refreshes the session token for the user
-func (uc *UserCredentialsProvider) RefreshToken(ctx context.Context) error {
+func RefreshTokenWithUserCredentials(ctx context.Context, uc *UserCredentials) error {
 	service := ctx.Value(ServiceKey).(*Service)
 	logger := service.Logger
 	client := service.Client
@@ -65,12 +75,12 @@ func (uc *UserCredentialsProvider) RefreshToken(ctx context.Context) error {
 }
 
 // GetToken returns the session token for the user
-func (uc *UserCredentialsProvider) GetToken(ctx context.Context) (string, error) {
+func GetTokenWithUserCredentials(ctx context.Context, uc *UserCredentials) (string, error) {
 	service := ctx.Value(ServiceKey).(*Service)
 	if service.SessionToken != nil && *service.SessionToken != "" {
 		return *service.SessionToken, nil
 	}
-	err := uc.RefreshToken(ctx)
+	err := RefreshTokenWithUserCredentials(ctx, uc)
 	if err != nil {
 		return "", err
 	}
@@ -79,14 +89,4 @@ func (uc *UserCredentialsProvider) GetToken(ctx context.Context) (string, error)
 	}
 
 	return "", nil
-}
-
-// UpdateRequestWithToken updates the request with the session token
-func (uc *UserCredentialsProvider) UpdateRequestWithToken(ctx context.Context, req *http.Request) error {
-	tok, err := uc.GetToken(ctx)
-	if err != nil {
-		return err
-	}
-	req.Header.Set("Authorization", "Bearer "+tok)
-	return nil
 }

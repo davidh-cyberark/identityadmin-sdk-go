@@ -15,10 +15,10 @@ REDOCLY_CLI := $(NPMBINRELDIR)/redocly
 redocly-cli: $(REDOCLY_CLI)  ## install redocly-cli - for linting and generating docs
 
 $(REDOCLY_CLI): | npm-installed  ## check if redocly-cli is installed
-	$(NPM) list @redocly/cli@latest >/dev/null || $(NPM) install @redocly/cli@latest
+	$(NPM) list @redocly/cli >/dev/null || $(NPM) install @redocly/cli
 
 redocly-cli-uninstall: | npm-installed  ## uninstall redocly-cli
-	$(NPM) uninstall @redocly/cli@latest
+	$(NPM) uninstall @redocly/cli
 
 #####
 # Code generation

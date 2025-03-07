@@ -42,10 +42,11 @@ func main() {
 	ctx := context.Background()
 
 	// Implements the AuthenticationProvider interface
-	var authnProvider identity.AuthenticationProvider = &identity.UserCredentialsProvider{
+	userCreds := &identity.UserCredentials{
 		User: *iduser,
 		Pass: *idpass,
 	}
+	var authnProvider identity.AuthenticationProvider = userCreds
 
 	// Create a new identity service
 	service, errService := identity.NewService(ctx, *idtenanturl, identity.ServiceWithLogger(logger), identity.ServiceWithAuthnProvider(authnProvider))
@@ -55,7 +56,7 @@ func main() {
 	ctx = context.WithValue(ctx, identity.ServiceKey, service)
 
 	// Get Token returns the session token for the user.
-	tok, tokErr := service.AuthnProvider.GetToken(ctx)
+	tok, tokErr := identity.GetTokenWithUserCredentials(ctx, userCreds)
 	if tokErr != nil {
 		log.Fatalf("failed to get token: %s", tokErr)
 	}
