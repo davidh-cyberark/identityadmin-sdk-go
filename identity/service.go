@@ -7,7 +7,6 @@ import (
 type contextKey string
 
 const IdentityService contextKey = "IdentityService"
-const IdentityRequestHeaders contextKey = "IdentityRequestHeaders"
 const IdentityTokenRefresh contextKey = "IdentityTokenRefresh"
 
 type Service struct {

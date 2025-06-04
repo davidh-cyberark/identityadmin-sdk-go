@@ -21,12 +21,13 @@ func (uc *UserCredentialsAuthenticationProvider) Intercept(ctx context.Context, 
 		return nil
 	}
 
-	// check for invalid or expired token, and call refresh token;
-	// side effect is that uc.Token is updated with fresh token
+	// check for invalid or expired token, and call refresh token
 	if !uc.IsTokenValid() {
 		service := ctx.Value(IdentityService).(*Service)
 		if service != nil {
 			refreshctx := context.WithValue(ctx, IdentityTokenRefresh, "RefreshToken")
+
+			// side effect is that uc.Token is updated with fresh token
 			err := RefreshTokenWithUserCredentials(refreshctx, service, uc)
 			if err != nil {
 				return fmt.Errorf("failed to refresh token: %w", err)
@@ -58,7 +59,13 @@ func RefreshTokenWithUserCredentials(ctx context.Context, service *Service, uc *
 	}
 
 	logger := service.Logger
+	if logger == nil {
+		return fmt.Errorf("logger not set")
+	}
 	client := service.Client
+	if client == nil {
+		return fmt.Errorf("client not set")
+	}
 
 	// Security Start Authentication
 	reqStartAuth := PostSecurityStartAuthenticationJSONRequestBody{
@@ -66,15 +73,16 @@ func RefreshTokenWithUserCredentials(ctx context.Context, service *Service, uc *
 		User:     uc.User,
 		Version:  "1.0",
 	}
-	respAuthStart, respAuthStartErr := client.PostSecurityStartAuthenticationWithResponse(ctx,
-		reqStartAuth)
+	respAuthStart, respAuthStartErr := client.PostSecurityStartAuthenticationWithResponse(ctx, reqStartAuth)
 	if respAuthStartErr != nil {
-		return fmt.Errorf("failed call to AuthStart: %s", respAuthStartErr)
+		return fmt.Errorf("failed call to start authn: %s", respAuthStartErr)
 	}
+
 	headers := headersToString(respAuthStart.HTTPResponse.Header)
 	logger.Println("Start Authentication")
 	logger.Printf("--- HEADERS BEGIN ---\n%s\n--- HEADERS END ---", headers)
 	logger.Printf("--- RESPONSE BEGIN ---\nStatus=%s\nBody=\n%s\n--- RESPONSE END ---\n", respAuthStart.Status(), string(respAuthStart.Body))
+
 	persistLogin := true
 	if respAuthStart.JSON200.Result.Challenges == nil {
 		return fmt.Errorf("no challenges returned")
@@ -100,7 +108,7 @@ func RefreshTokenWithUserCredentials(ctx context.Context, service *Service, uc *
 	respAdvanceAuth, respAdvanceAuthErr := client.PostSecurityAdvanceAuthenticationWithResponse(ctx,
 		reqAdvanceAuth)
 	if respAdvanceAuthErr != nil {
-		return fmt.Errorf("failed call to AdvanceAuth: %s", respAdvanceAuthErr)
+		return fmt.Errorf("failed call to advance authn: %s", respAdvanceAuthErr)
 	}
 	headers = headersToString(respAdvanceAuth.HTTPResponse.Header)
 	logger.Println("Start Advance Authentication")

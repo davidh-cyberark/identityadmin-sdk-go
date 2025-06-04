@@ -2,13 +2,8 @@ package identity
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"time"
-)
-
-var (
-	ErrNoAuthnProvider = fmt.Errorf("no authentication provider")
 )
 
 type BearerToken struct {
