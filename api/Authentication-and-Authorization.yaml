@@ -4,7 +4,7 @@ info:
   title: Authentication & Authorization
   termsOfService: 'https://www.idaptive.com/eula/'
 servers:
-  - url: 'https://{tenant_url}/'
+  - url: 'https://{tenant_url}'
     variables:
       tenant_url:
         default: example.id.cyberark.cloud
@@ -64,7 +64,7 @@ paths:
                 $ref: '#/components/schemas/SecurityStartAuthentication'
       security: []
       servers:
-        - url: 'https://{tenant_url}/'
+        - url: 'https://{tenant_url}'
           variables:
             tenant_url:
               default: example.id.cyberark.cloud
@@ -385,7 +385,7 @@ paths:
                 $ref: '#/components/schemas/SecurityAdvanceAuthentication'
       security: []
       servers:
-        - url: 'https://{tenant_url}/'
+        - url: 'https://{tenant_url}'
           variables:
             tenant_url:
               default: example.id.cyberark.cloud
@@ -418,7 +418,7 @@ paths:
       security:
         - bearerAuth: []
       servers:
-        - url: 'https://{tenant_url}/'
+        - url: 'https://{tenant_url}'
           variables:
             tenant_url:
               default: example.id.cyberark.cloud
@@ -458,7 +458,7 @@ paths:
       security:
         - bearerAuth: []
       servers:
-        - url: 'https://{tenant_url}/'
+        - url: 'https://{tenant_url}'
           variables:
             tenant_url:
               default: example.id.cyberark.cloud
@@ -496,7 +496,7 @@ paths:
                 $ref: '#/components/schemas/SecurityAnswerOOBChallenge'
       security: []
       servers:
-        - url: 'https://{tenant_url}/'
+        - url: 'https://{tenant_url}'
           variables:
             tenant_url:
               default: example.id.cyberark.cloud
@@ -547,7 +547,7 @@ paths:
       security:
         - bearerAuth: []
       servers:
-        - url: 'https://{tenant_url}/'
+        - url: 'https://{tenant_url}'
           variables:
             tenant_url:
               default: example.id.cyberark.cloud
@@ -583,7 +583,7 @@ paths:
                 $ref: '#/components/schemas/SecuritySubmitQRCode'
       security: []
       servers:
-        - url: 'https://{tenant_url}/'
+        - url: 'https://{tenant_url}'
           variables:
             tenant_url:
               default: example.id.cyberark.cloud
@@ -630,7 +630,7 @@ paths:
                 $ref: '#/components/schemas/U2fAnswerRegistrationChallenge'
       security: []
       servers:
-        - url: 'https://{tenant_url}/'
+        - url: 'https://{tenant_url}'
           variables:
             tenant_url:
               default: example.id.cyberark.cloud
@@ -663,7 +663,7 @@ paths:
                 $ref: '#/components/schemas/SecuritySubmitOathOtpCode'
       security: []
       servers:
-        - url: 'https://{tenant_url}/'
+        - url: 'https://{tenant_url}'
           variables:
             tenant_url:
               default: example.id.cyberark.cloud
@@ -697,7 +697,7 @@ paths:
                 $ref: '#/components/schemas/SecurityStartForgotUsername'
       security: []
       servers:
-        - url: 'https://{tenant_url}/'
+        - url: 'https://{tenant_url}'
           variables:
             tenant_url:
               default: example.id.cyberark.cloud
@@ -764,7 +764,7 @@ paths:
       security:
         - bearerAuth: []
       servers:
-        - url: 'https://{tenant_url}/'
+        - url: 'https://{tenant_url}'
           variables:
             tenant_url:
               default: example.id.cyberark.cloud
@@ -807,7 +807,7 @@ paths:
       security:
         - bearerAuth: []
       servers:
-        - url: 'https://{tenant_url}/'
+        - url: 'https://{tenant_url}'
           variables:
             tenant_url:
               default: example.id.cyberark.cloud
@@ -847,7 +847,7 @@ paths:
                 $ref: '#/components/schemas/SecurityStartSocialAuthentication'
       security: []
       servers:
-        - url: 'https://{tenant_url}/'
+        - url: 'https://{tenant_url}'
           variables:
             tenant_url:
               default: example.id.cyberark.cloud
@@ -892,7 +892,7 @@ paths:
                 $ref: '#/components/schemas/SecurityStartQRCodeAuthentication'
       security: []
       servers:
-        - url: 'https://{tenant_url}/'
+        - url: 'https://{tenant_url}'
           variables:
             tenant_url:
               default: example.id.cyberark.cloud
@@ -918,7 +918,7 @@ paths:
       security:
         - bearerAuth: []
       servers:
-        - url: 'https://{tenant_url}/'
+        - url: 'https://{tenant_url}'
           variables:
             tenant_url:
               default: example.id.cyberark.cloud
@@ -950,7 +950,7 @@ paths:
       security:
         - bearerAuth: []
       servers:
-        - url: 'https://{tenant_url}/'
+        - url: 'https://{tenant_url}'
           variables:
             tenant_url:
               default: example.id.cyberark.cloud
@@ -985,7 +985,7 @@ paths:
                 $ref: '#/components/schemas/OAuth2GetMeta_400_errors'
       security: []
       servers:
-        - url: 'https://{tenant_url}/'
+        - url: 'https://{tenant_url}'
           variables:
             tenant_url:
               default: example.id.cyberark.cloud
@@ -1020,13 +1020,13 @@ paths:
       security:
         - bearerAuth: []
       servers:
-        - url: 'https://{tenant_url}/'
+        - url: 'https://{tenant_url}'
           variables:
             tenant_url:
               default: example.id.cyberark.cloud
       x-idap-anon: true
       x-codegen-request-body-name: payload
-  '/OAuth2/Authorize/{app_id}/':
+  '/OAuth2/Authorize/{app_id}':
     post:
       tags:
         - OAuth & OpenID Connect
@@ -1131,7 +1131,7 @@ paths:
       security:
         - bearerAuth: []
       servers:
-        - url: 'https://{tenant_url}/'
+        - url: 'https://{tenant_url}'
           variables:
             tenant_url:
               default: example.id.cyberark.cloud
@@ -1199,7 +1199,7 @@ paths:
       security:
         - bearerAuth: []
       servers:
-        - url: 'https://{tenant_url}/'
+        - url: 'https://{tenant_url}'
           variables:
             tenant_url:
               default: example.id.cyberark.cloud
@@ -1273,7 +1273,7 @@ paths:
                 $ref: '#/components/schemas/OAuth2Token_400_errors'
       security: []
       servers:
-        - url: 'https://{tenant_url}/'
+        - url: 'https://{tenant_url}'
           variables:
             tenant_url:
               default: example.id.cyberark.cloud
@@ -1314,7 +1314,7 @@ paths:
       security:
         - bearerAuth: []
       servers:
-        - url: 'https://{tenant_url}/'
+        - url: 'https://{tenant_url}'
           variables:
             tenant_url:
               default: example.id.cyberark.cloud
@@ -1362,7 +1362,7 @@ paths:
       security:
         - bearerAuth: []
       servers:
-        - url: 'https://{tenant_url}/'
+        - url: 'https://{tenant_url}'
           variables:
             tenant_url:
               default: example.id.cyberark.cloud
@@ -1409,7 +1409,7 @@ paths:
       security:
         - basicAuth: []
       servers:
-        - url: 'https://{tenant_url}/'
+        - url: 'https://{tenant_url}'
           variables:
             tenant_url:
               default: example.id.cyberark.cloud
@@ -1453,7 +1453,7 @@ paths:
       security:
         - bearerAuth: []
       servers:
-        - url: 'https://{tenant_url}/'
+        - url: 'https://{tenant_url}'
           variables:
             tenant_url:
               default: example.id.cyberark.cloud
