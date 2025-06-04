@@ -20,8 +20,8 @@ identity/identity-types.gen.go: api/identity-combined.yaml | oapi-codegen-instal
 identity/identity-client.gen.go: api/identity-combined.yaml | oapi-codegen-installed
 	$(OAPI_CODEGEN) -generate client -package identity $< > $@
 
-$(BINDIR)/identity-client: VERSION identity/identity-client.gen.go identity/identity-types.gen.go cmd/identity-client/main.go
-	$(GO) build -o $@ $(LDFLAGS) cmd/identity-client/main.go
+$(BINDIR)/identity-client: VERSION identity/identity-client.gen.go identity/identity-types.gen.go identity/*.go examples/identity-client/main.go
+	$(GO) build -o $@ $(LDFLAGS) examples/identity-client/main.go
 
 .PHONY: identity-client
 identity-client: $(BINDIR)/identity-client ## Build the identity-client binary

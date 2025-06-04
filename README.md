@@ -4,20 +4,40 @@
 
 <!--
 Author:   David Hisel <david.hisel@cyberark.com>
-Updated:  <2025/02/28 18:57:32>
+Updated:  <2025/06/04 18:12:53>
 -->
 
-Note that this SDK is a **WORK IN PROGRESS**, and does not implement all the endpoints, yet.
+Note that this SDK is a **WORK IN PROGRESS**, and does not implement all the endpoints yet.
 
-## Summary
+## Description
 
 This Go SDK interfaces with CyberArk Identity Adminstration REST endpoints.
 
 Here is [a link to the documentation](https://docs.cyberark.com/identity-administration/latest/en/content/developer/developer-home.htm) for reference.
 
-## Examples
+## Requirements
 
-Look in [`cmd/`](./cmd) folder for example implementations.
+- go v1.24.3
+
+## Project Status
+
+**WORK IN PROGRESS** -- breaking changes are expected
+
+## Maintainers
+
+This project is maintained and updated when there are issues submitted.
+
+[CODEOWNERS](.github/CODEOWNERS)
+
+## Example Code
+
+Look in [`examples/`](./examples) folder for example implementations.
+
+## Contributing
+
+We welcome contributions of all kinds to this repository. For
+instructions on how to get started and descriptions of our development
+workflows, please see our [contributing guide](CONTRIBUTING.md).
 
 ## License
 
@@ -37,11 +57,12 @@ limitations under the License.
 
 For the full license text see [`LICENSE`](LICENSE).
 
-## Contributing
+## Code of Conduct
 
-We welcome contributions of all kinds to this repository. For
-instructions on how to get started and descriptions of our development
-workflows, please see our [contributing
-guide](CONTRIBUTING.md).
+Summary of Key Principles
 
-[Code of Conduct](CODE_OF_CONDUCT.md).
+- Be respectful to others in the community at all times.
+- Report harassing or abusive behavior that you experience or witness at <ReportAbuse@cyberark.com>
+- The CyberArk community will not tolerate abusive or disrespectful behavior towards its members; anyone engaging in such behavior will be suspended from the CyberArk community.
+
+For the full document see the [Code of Conduct](CODE_OF_CONDUCT.md).

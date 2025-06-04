@@ -5,6 +5,7 @@ package.json
 
 *.log
 .vscode/* 
+vscode-workspace*
 *~
 bin/
 **/Archive

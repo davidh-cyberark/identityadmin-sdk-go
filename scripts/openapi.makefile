@@ -1,6 +1,6 @@
 # openapi.makefile
 
-# Updated: <2025/03/03 20:13:41>
+# Updated: <2025/06/04 17:38:20>
 
 .PHONY: scripts/openapi.makefile 
 include scripts/go.makefile
@@ -34,7 +34,7 @@ endif
 oapi-codegen: bin/oapi-codegen ## install oapi-codegen tool
 
 bin/oapi-codegen: | go-installed
-	GOBIN=$(shell pwd)/bin $(GO) install github.com/deepmap/oapi-codegen/cmd/oapi-codegen@latest
+	GOBIN=$(shell pwd)/bin $(GO) install github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@latest
 
 .PHONY: vardump distclean
 distclean::
