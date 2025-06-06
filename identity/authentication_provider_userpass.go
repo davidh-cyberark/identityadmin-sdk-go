@@ -44,9 +44,9 @@ func (uc *UserCredentialsAuthenticationProvider) Intercept(ctx context.Context, 
 
 func (uc *UserCredentialsAuthenticationProvider) IsTokenValid() bool {
 	if uc.Token == nil || uc.Token.Token == "" || uc.Token.Expires == nil {
-		return true
+		return false
 	}
-	return uc.Token.Expires.Before(time.Now())
+	return uc.Token.Expires.After(time.Now())
 }
 
 // RefreshToken refreshes the session token for the user

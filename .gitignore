@@ -4,7 +4,8 @@ package-lock.json
 package.json
 
 *.log
-.vscode/* 
+.idea/*
+.vscode/*
 vscode-workspace*
 *~
 bin/
