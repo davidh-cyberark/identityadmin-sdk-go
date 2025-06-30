@@ -1,19 +1,10 @@
 package identity
 
 import (
+	"encoding/json"
 	"fmt"
-	"net/http"
-	"strings"
 	"unicode"
 )
-
-func headersToString(header http.Header) string {
-	var sb strings.Builder
-	for key, values := range header {
-		sb.WriteString(fmt.Sprintf("%s: %s\n", key, strings.Join(values, ",")))
-	}
-	return sb.String()
-}
 
 func ValidateRoleName(s string) error {
 	// A username can contain of any UTF-8 alphanumeric characters plus the
@@ -26,30 +17,42 @@ func ValidateRoleName(s string) error {
 	return nil
 }
 
-// ReturnErrorWhenBodySuccessIsFalse returns an error if the body's Success field is false (even though HTTP status code is 200 OK).
-func ReturnErrorWhenBodySuccessIsFalse(body *RolesStoreRole) error {
+// IsBodySuccessFieldFalse returns an error if the body's Success field is false (even though HTTP status code is 200 OK).
+func IsBodySuccessFieldFalse(body *RolesStoreRole) error {
 	if body == nil {
-		return fmt.Errorf("failed to create role: body is nil")
+		return fmt.Errorf("unknown error: body is nil")
 	}
 	success := body.Success
 	if *success {
 		return nil
 	}
+
+	retMsg := make(map[string]string)
 	Message := body.Message
 	if Message != nil {
-		return fmt.Errorf("failed to create role: %s", *Message)
+		retMsg["Message"] = *Message
 	}
 	MessageID := body.MessageID
 	if MessageID != nil {
-		return fmt.Errorf("failed to create role: %s", *MessageID)
+		retMsg["MessageID"] = *MessageID
 	}
 	ErrorCode := body.ErrorCode
 	if ErrorCode != nil {
-		return fmt.Errorf("failed to create role (no message available) error code: %s", *ErrorCode)
+		retMsg["ErrorCode"] = *ErrorCode
 	}
 	ErrorID := body.ErrorID
 	if ErrorID != nil {
-		return fmt.Errorf("failed to create role (no message available) error id: %s", *ErrorID)
+		retMsg["ErrorID"] = *ErrorID
 	}
-	return fmt.Errorf("failed to create role: unknown error")
+
+	if len(retMsg) == 0 {
+		return fmt.Errorf("unknown error")
+	}
+
+	jsonBytes, err := json.Marshal(retMsg)
+	if err != nil {
+		return fmt.Errorf("error marshaling to JSON: %v", err)
+	}
+	jsonString := string(jsonBytes)
+	return fmt.Errorf("%s", jsonString)
 }

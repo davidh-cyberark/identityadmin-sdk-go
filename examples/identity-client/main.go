@@ -4,8 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"io"
-	"log"
 	"os"
 
 	"github.com/davidh-cyberark/identityadmin-sdk-go/identity"
@@ -21,19 +19,11 @@ func main() {
 	idpass := flag.String("idpass", "", "Identity user password")
 
 	ver := flag.Bool("version", false, "Print version")
-	debug := flag.Bool("d", false, "Enable debug settings")
 	flag.Parse()
 
 	if *ver {
 		fmt.Printf("Version: %s\n", version)
 		os.Exit(0)
-	}
-
-	// logger
-	logger := log.New(os.Stderr, "[identity-client] ", log.LstdFlags)
-
-	if !*debug {
-		logger.SetOutput(io.Discard)
 	}
 
 	ctx := context.Background()
@@ -48,14 +38,13 @@ func main() {
 	client, clientErr := identity.NewClientWithResponses(*idtenanturl,
 		identity.WithRequestEditorFn(userAuth.Intercept))
 	if clientErr != nil {
-		logger.Fatalf("failed to create client: %v", clientErr)
+		panic(fmt.Sprintf("failed to create client: %v", clientErr))
 	}
 
 	// Create the Identity service with the client and authentication provider
 	service := &identity.Service{
 		TenantURL:     *idtenanturl,
 		Client:        client,
-		Logger:        logger,
 		AuthnProvider: userAuth,
 	}
 
@@ -66,7 +55,7 @@ func main() {
 
 	err := identity.RefreshTokenWithUserCredentials(refreshctx, service, userAuth)
 	if err != nil {
-		log.Fatalf("failed to refresh token: %v", err)
+		panic(fmt.Sprintf("failed to refresh token: %v", err))
 	}
 
 	fmt.Printf("Authorization: %s %s\n", userAuth.Token.TokenType, userAuth.Token.Token)

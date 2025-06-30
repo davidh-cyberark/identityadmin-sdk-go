@@ -10,6 +10,11 @@ vscode-workspace*
 *~
 bin/
 **/Archive
+local.env
+tmp/*
+*.BAK
+*.bak
+.DS_Store
 
 # Ignore Generated Files
 api/identity-combined.yaml

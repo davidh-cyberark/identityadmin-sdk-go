@@ -58,10 +58,6 @@ func RefreshTokenWithUserCredentials(ctx context.Context, service *Service, uc *
 		return fmt.Errorf("service not set")
 	}
 
-	logger := service.Logger
-	if logger == nil {
-		return fmt.Errorf("logger not set")
-	}
 	client := service.Client
 	if client == nil {
 		return fmt.Errorf("client not set")
@@ -77,11 +73,6 @@ func RefreshTokenWithUserCredentials(ctx context.Context, service *Service, uc *
 	if respAuthStartErr != nil {
 		return fmt.Errorf("failed call to start authn: %s", respAuthStartErr)
 	}
-
-	headers := headersToString(respAuthStart.HTTPResponse.Header)
-	logger.Println("Start Authentication")
-	logger.Printf("--- HEADERS BEGIN ---\n%s\n--- HEADERS END ---", headers)
-	logger.Printf("--- RESPONSE BEGIN ---\nStatus=%s\nBody=\n%s\n--- RESPONSE END ---\n", respAuthStart.Status(), string(respAuthStart.Body))
 
 	persistLogin := true
 	if respAuthStart.JSON200.Result.Challenges == nil {
@@ -110,10 +101,6 @@ func RefreshTokenWithUserCredentials(ctx context.Context, service *Service, uc *
 	if respAdvanceAuthErr != nil {
 		return fmt.Errorf("failed call to advance authn: %s", respAdvanceAuthErr)
 	}
-	headers = headersToString(respAdvanceAuth.HTTPResponse.Header)
-	logger.Println("Start Advance Authentication")
-	logger.Printf("--- HEADERS BEGIN ---\n%s\n--- HEADERS END ---", headers)
-	logger.Printf("--- RESPONSE BEGIN ---\nStatus=%s\nBody=\n%s\n--- RESPONSE END ---\n", respAdvanceAuth.Status(), string(respAdvanceAuth.Body))
 
 	if respAdvanceAuth.JSON200.Result.Token == nil {
 		return fmt.Errorf("no token returned")
