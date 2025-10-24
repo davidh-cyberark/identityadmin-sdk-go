@@ -4,8 +4,8 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"io"
 	"log"
+	"log/slog"
 	"os"
 
 	"github.com/davidh-cyberark/identityadmin-sdk-go/identity"
@@ -13,30 +13,28 @@ import (
 
 var (
 	version string = "dev"
+
+	// Command line flags
+	idtenanturl *string
+	iduser      *string
+	idpass      *string
+	ver         *bool
 )
 
-func main() {
-	idtenanturl := flag.String("idtenanturl", "", "Identity URL")
-	iduser := flag.String("iduser", "", "Identity user id")
-	idpass := flag.String("idpass", "", "Identity user password")
+func init() {
+	idtenanturl = flag.String("idtenanturl", "", "Identity URL")
+	iduser = flag.String("iduser", "", "Identity user id")
+	idpass = flag.String("idpass", "", "Identity user password")
 
-	ver := flag.Bool("version", false, "Print version")
-	debug := flag.Bool("d", false, "Enable debug settings")
+	ver = flag.Bool("version", false, "Print version")
 	flag.Parse()
+}
 
+func main() {
 	if *ver {
 		fmt.Printf("Version: %s\n", version)
 		os.Exit(0)
 	}
-
-	// logger
-	logger := log.New(os.Stderr, "[identity-client] ", log.LstdFlags)
-
-	if !*debug {
-		logger.SetOutput(io.Discard)
-	}
-
-	ctx := context.Background()
 
 	// Create the Authentication provider
 	userAuth := &identity.UserCredentialsAuthenticationProvider{
@@ -44,30 +42,22 @@ func main() {
 		Pass: *idpass,
 	}
 
-	// Create the Identity client with the authentication provider
-	client, clientErr := identity.NewClientWithResponses(*idtenanturl,
-		identity.WithRequestEditorFn(userAuth.Intercept))
-	if clientErr != nil {
-		logger.Fatalf("failed to create client: %v", clientErr)
+	servicectx, service, serviceErr := identity.NewService(context.Background(), *idtenanturl, userAuth, nil)
+	if serviceErr != nil {
+		log.Fatalf("failed to create service: %s", serviceErr.Error())
 	}
 
-	// Create the Identity service with the client and authentication provider
-	service := &identity.Service{
-		TenantURL:     *idtenanturl,
-		Client:        client,
-		Logger:        logger,
-		AuthnProvider: userAuth,
+	// Use the service ctx here so that the refresh by the auth provider can find the service object
+	tok, tokErr := service.AuthnProvider.RefreshToken(servicectx, nil)
+	if tokErr != nil {
+		slog.Error("failed to refresh token", slog.Any("error", tokErr.Error()))
+		os.Exit(1)
 	}
 
-	ctx = context.WithValue(ctx, identity.IdentityService, service)
-
-	// only when calling the refresh token, set the refreshtoken context
-	refreshctx := context.WithValue(ctx, identity.IdentityTokenRefresh, "RefreshToken")
-
-	err := identity.RefreshTokenWithUserCredentials(refreshctx, service, userAuth)
-	if err != nil {
-		log.Fatalf("failed to refresh token: %v", err)
+	if tok == nil {
+		slog.Error("token is nil", slog.Any("error", "refresh token returned nil token"))
+		os.Exit(1)
 	}
 
-	fmt.Printf("Authorization: %s %s\n", userAuth.Token.TokenType, userAuth.Token.Token)
+	fmt.Printf("Authorization: %s\n", userAuth.Token)
 }
